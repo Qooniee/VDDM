@@ -1,0 +1,23 @@
+# Jetson.GPIO==2.0.20
+RPi.GPIO
+Adafruit-Blinka
+adafruit-circuitpython-busdevice
+adafruit-circuitpython-register
+adafruit-circuitpython-bno055
+matplotlib
+numpy
+Pillow
+scipy
+pandas
+urllib3
+pathlib
+Pillow
+pytz
+requests
+Ipython
+ipywidgets
+widgetsnbextension
+jupyterlab
+ipykernel
+# onnxruntime
+# onnx
