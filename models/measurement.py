@@ -10,6 +10,9 @@ import board
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
+import asyncio
+import shutil
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
@@ -29,7 +32,7 @@ def wait_process(wait_sec):
     return
 
 class measurement_BNO055:
-    def __init__(self, BNO_UPDATE_FREQUENCY_HZ=10, seq_len=1000):
+    def __init__(self, SAMPLING_FREQUENCY_HZ=10, seq_len=1000):
         
         self.COLUMNS = ["Time",
                         "linear_accel_x", "linear_accel_y", "linear_accel_z", 
@@ -43,13 +46,13 @@ class measurement_BNO055:
 
 
     
-        self.BNO_UPDATE_FREQUENCY_HZ = BNO_UPDATE_FREQUENCY_HZ
-        self.sampling_time = 1 / self.BNO_UPDATE_FREQUENCY_HZ
-        self.exepath = path + '/measurement_system'
+        self.SAMPLING_FREQUENCY_HZ = SAMPLING_FREQUENCY_HZ
+        self.sampling_time = 1 / self.SAMPLING_FREQUENCY_HZ
         self.datapath = path + '/data'
     
         self.seq_len = seq_len
-        self.INIT_LEN = self.seq_len // self.BNO_UPDATE_FREQUENCY_HZ
+        self.INIT_LEN = self.seq_len // self.SAMPLING_FREQUENCY_HZ
+        self.SAVE_INTERVAL = 10
 
         self.Time_queue = deque(np.zeros(self.INIT_LEN))# Time
         self.linear_accel_x_queue = deque(np.zeros(self.INIT_LEN))# linear_accel_x
@@ -104,15 +107,20 @@ class measurement_BNO055:
 
 
     def calcEulerfromQuaternion(self, _w, _x, _y, _z):
-        sqw = _w ** 2
-        sqx = _x ** 2
-        sqy = _y ** 2
-        sqz = _z ** 2
-        COEF_EULER2DEG = 57.2957795131
-        yaw = COEF_EULER2DEG * (np.arctan2(2.0 * (_x * _y + _z * _w), (sqx - sqy - sqz + sqw)))# Yaw
-        pitch = COEF_EULER2DEG * (np.arcsin(-2.0 * (_x * _z - _y * _w) / (sqx + sqy + sqz + sqw)))# Pitch
-        roll = COEF_EULER2DEG * (np.arctan2(2.0 * (_y * _z + _x * _w), (-sqx - sqy + sqz + sqw)))# Roll
-        return roll, pitch, yaw
+        try:
+            sqw = _w ** 2
+            sqx = _x ** 2
+            sqy = _y ** 2
+            sqz = _z ** 2
+            COEF_EULER2DEG = 57.2957795131
+            yaw = COEF_EULER2DEG * (np.arctan2(2.0 * (_x * _y + _z * _w), (sqx - sqy - sqz + sqw)))  # Yaw
+            pitch = COEF_EULER2DEG * (np.arcsin(-2.0 * (_x * _z - _y * _w) / (sqx + sqy + sqz + sqw)))  # Pitch
+            roll = COEF_EULER2DEG * (np.arctan2(2.0 * (_y * _z + _x * _w), (-sqx - sqy + sqz + sqw)))  # Roll
+            return roll, pitch, yaw
+        except Exception as e:
+            print(f"Error in calcEulerfromQuaternion: {e}")
+            return 0.0, 0.0, 0.0
+
 
 
 
@@ -203,12 +211,37 @@ class measurement_BNO055:
         else:
             return False
 
+    # def concat_meas_data(self):
+    #     dataset = np.append(self.current_time, self.current_data_list).reshape(1, -1)
+    #     if self.main_loop_clock == 0:
+    #         self.assy_data = dataset
+    #     else:
+    #         self.assy_data = np.concatenate([self.assy_data, dataset], axis=0)
+            
+            
     def concat_meas_data(self):
-        dataset = np.append(self.current_time, self.current_data_list).reshape(1, -1)
-        if self.main_loop_clock == 0:
-            self.assy_data = dataset
-        else:
-            self.assy_data = np.concatenate([self.assy_data, dataset], axis=0)
+            current_data = np.append([self.current_time], self.current_data_list)
+            dataset = current_data.reshape(1, -1)  # Reshape to ensure 2D
+            
+            print(f'self.assy_data shape: {self.assy_data.shape}')
+            print(f'dataset shape: {dataset.shape}')
+            
+            if self.main_loop_clock == 0:
+                self.assy_data = dataset
+            else:
+                # Ensure the dimensions are correct for concatenation
+                try:
+                    if self.assy_data.shape[1] == dataset.shape[1]:
+                        self.assy_data = np.concatenate([self.assy_data, dataset], axis=0)
+                    else:
+                        print("Dimension mismatch between assy_data and dataset")
+                except IndexError as e:
+                    print("IndexError during concatenation:", e)
+            
+
+
+
+
 
     def show_current_data(self, data_list, data_label):
         message = ""
@@ -219,20 +252,35 @@ class measurement_BNO055:
         return message
 
 
-    def save_data(self):
+    # async def save_data(self):
+    #     # Convert the DataFrame from the numpy array
+    #     self.df = pd.DataFrame(self.assy_data, columns=self.COLUMNS, dtype=np.float32)
+    #     await save_data_async(self.df, self.current_file_path)
+    #     self.assy_data = np.zeros((0, len(self.COLUMNS)))  # Clear data but keep the correct shape
+    
+    async def save_data(self):
+        batch_df = pd.DataFrame(self.assy_data, columns=self.COLUMNS, dtype=np.float32)
+        await asyncio.to_thread(batch_df.to_csv, self.datapath + '/' + 'measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=False, mode='a')
+        self.assy_data = np.zeros((0, len(self.COLUMNS)))
+
+
+    def finish_measurement_and_save_data(self):
         t_delta = datetime.timedelta(hours=9)
         JST = datetime.timezone(t_delta, 'JST')# You have to set your timezone
         now = datetime.datetime.now(JST)
         timestamp = now.strftime('%Y%m%d%H%M%S')
-
-
-        # convert the DataFrame from the numpy array
-        self.df = pd.DataFrame(self.assy_data)
-        self.df.columns = self.COLUMNS
-        self.df.to_csv(self.datapath + '/'+ timestamp +'_measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=True)
-        if self.Isfilter:
-            self.filtered_df = self.filtering(df=self.df, labellist=self.COLUMNS[1:])
-            self.filtered_df.to_csv(self.datapath + '/'+ timestamp +'_measurement_filt_data.csv', sep=',', encoding='utf-8', index=False, header=True)
+        
+        os.makedirs(self.datapath + '/' + timestamp)
+        src_file_path = self.datapath + '/' + 'measurement_raw_data.csv'
+        dst_file_path = self.datapath + '/' + timestamp + '/' + timestamp + '_measurement_raw_data.csv'
+        shutil.copy2(src_file_path, dst_file_path)
+        shutil.copy2(src_file_path, self.datapath + '/' + 'backup_measurement_raw_data.csv')
+        os.remove(src_file_path)
+        
+        # self.df.to_csv(self.datapath + '/'+ timestamp +'_measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=True)
+        # if self.Isfilter:
+        #     self.filtered_df = self.filtering(df=self.df, labellist=self.COLUMNS[1:])
+        #     self.filtered_df.to_csv(self.datapath + '/'+ timestamp +'_measurement_filt_data.csv', sep=',', encoding='utf-8', index=False, header=True)
 
 
         print("Dataframe was saved!")
@@ -257,7 +305,7 @@ class measurement_BNO055:
 
         return filtered_df
 
-    def meas_start(self):
+    async def meas_start(self):
         
         self.main_loop_clock = 0# Clock
         ## Measurement Main Loop ##
@@ -267,10 +315,11 @@ class measurement_BNO055:
         self.meas_start_time = time.time()#Logic start time
         self.IsStart = True
         self.IsStop = False
+        # Main Loop for measurement
         try: 
             while self.IsStart:
                 self.itr_start_time = time.time()# Start time of iteration loop
-                self.current_time = (self.main_loop_clock / self.BNO_UPDATE_FREQUENCY_HZ)# + self.sampling_time# Current time                    
+                self.current_time = (self.main_loop_clock / self.SAMPLING_FREQUENCY_HZ)# + self.sampling_time# Current time                    
                 ## Process / update data stream, concat data
                 """
                 1. get data fron a sensor BNO055
@@ -296,6 +345,9 @@ class measurement_BNO055:
                 wait_process(self.sampling_time - (self.itr_end_time - self.itr_start_time))# For keeping sampling frequency
                 self.main_loop_clock += 1
                 
+                if self.main_loop_clock % (self.SAVE_INTERVAL * self.SAMPLING_FREQUENCY_HZ) == 0:
+                    await self.save_data()
+                
 
 
         except Exception as e:
@@ -313,8 +365,11 @@ class measurement_BNO055:
             print("KeybordInterrupt!")     
             print(f'Elapsed Time: {self.elapsed_time:.3f}')
 
-            # save data
-            self.save_data()
+            # concat and save data
+            await self.save_data()
+
+            # save whole data
+            self.finish_measurement_and_save_data()
 
 
 
@@ -326,9 +381,9 @@ class measurement_BNO055:
 
 
 
-def main():
+async def main():
     print("Main start")
-    meas_bno055 = measurement_BNO055(BNO_UPDATE_FREQUENCY_HZ=10, seq_len=1000)
+    meas_bno055 = measurement_BNO055(SAMPLING_FREQUENCY_HZ=10, seq_len=1000)
     
     Isneed_calib = False
     if Isneed_calib:
@@ -337,7 +392,7 @@ def main():
     
     if True:
         meas_bno055.IsShow = True
-        meas_bno055.meas_start()
+        await meas_bno055.meas_start()
 
 
         
@@ -347,5 +402,5 @@ def main():
 if __name__ == '__main__':
     import time
     #simple_main()
-    main()
+    asyncio.run(main())
     print()
