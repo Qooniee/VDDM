@@ -1,0 +1,59 @@
+# Sensor Configuration
+sensors:
+  bno055:
+    sampling_frequency_hz: 10
+    sequence_length: 1000
+    save_interval: 10
+    data_columns:
+      - "Time"
+      - "linear_accel_x"
+      - "linear_accel_y"
+      - "linear_accel_z"
+      - "gyro_x"
+      - "gyro_y"
+      - "gyro_z"
+      - "euler_x"
+      - "euler_y"
+      - "euler_z"
+      - "quat_roll"
+      - "quat_pitch"
+      - "quat_yaw"
+      - "quaternion_1"
+      - "quaternion_2"
+      - "quaternion_3"
+      - "quaternion_4"
+      - "magnetic_x"
+      - "magnetic_y"
+      - "magnetic_z"
+      - "calibstat_sys"
+      - "calibstat_gyro"
+      - "calibstat_accel"
+      - "calibstat_mag"
+    filter_params:
+      fpass: 3
+      fstop: 5
+      gpass: 3
+      gstop: 8
+      is_filter: True
+    perform_calibration: false
+    save_data_path: /home/rasut/workspaces/VDDM/data
+
+  elm327:
+    sampling_frequency_hz: 10
+    sequence_length: 1000
+    save_interval: 10
+    data_columns:
+      - "Time"
+      - "SPEED"
+      - "RPM"
+    filter_params:
+      fpass: 3
+      fstop: 5
+      gpass: 3
+      gstop: 8
+    perform_calibration: false
+
+general:
+  data_path: "./data"
+  show_real_time_data: true
+  parent_dir: /home/rasut/workspaces/VDDM

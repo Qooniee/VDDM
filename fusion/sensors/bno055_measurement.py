@@ -2,7 +2,6 @@ import time
 import os
 from collections import deque
 import numpy as np
-import threading
 import sys
 import time
 import adafruit_bno055
@@ -13,46 +12,40 @@ import datetime
 import asyncio
 import shutil
 
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.abspath(os.path.join(current_dir, os.pardir))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(parent_dir)
+config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
 
 
-#from signalprocessing import butterlowpass
 from signalprocessing.filter import butterlowpass
+from utils.tools import wait_process
+from config.config_manager import load_config
 
 path = os.getcwd()
 
-from time import perf_counter
-def wait_process(wait_sec):
-    until = perf_counter() + wait_sec
-    while perf_counter() < until:
-        pass
-    return
-
-class measurement_BNO055:
-    def __init__(self, SAMPLING_FREQUENCY_HZ=10, seq_len=1000):
+class BNO055:
+    def __init__(self, config):
         
-        self.COLUMNS = ["Time",
-                        "linear_accel_x", "linear_accel_y", "linear_accel_z", 
-                        "gyro_x", "gyro_y", "gyro_z", 
-                        "euler_x", "euler_y", "euler_z",
-                        "quat_roll", "quat_pitch", "quat_yaw", 
-                        "quaternion_1", "quaternion_2", "quaternion_3", "quaternion_4", \
-                        "magnetic_x", "magnetic_y", "magnetic_z", \
-                        "calibstat_sys", "calibstat_gyro", "calibstat_accel", "calibstat_mag"
-                        ]
+        self.COLUMNS = config.data_columns    
+        self.SAMPLING_FREQUENCY_HZ = config.sampling_frequency_hz
+        self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
+        self.SAVE_DATA_PATH = config.save_data_path
+        self.SEQUENCE_LENGTH = config.sequence_length
+        self.INIT_LEN = self.SEQUENCE_LENGTH // self.SAMPLING_FREQUENCY_HZ
+        self.SAVE_INTERVAL = config.save_interval
+        self.FPASS = config.filter_params.fpass
+        self.FSTOP = config.filter_params.fstop
+        self.GPASS = config.filter_params.gpass
+        self.GSTOP = config.filter_params.gstop
+        self.Isfilter=config.filter_params.is_filter
+        
+        self.IsStart = False
+        self.IsStop = True
+        self.IsShow = False
 
-
-    
-        self.SAMPLING_FREQUENCY_HZ = SAMPLING_FREQUENCY_HZ
-        self.sampling_time = 1 / self.SAMPLING_FREQUENCY_HZ
-        self.datapath = path + '/data'
-    
-        self.seq_len = seq_len
-        self.INIT_LEN = self.seq_len // self.SAMPLING_FREQUENCY_HZ
-        self.SAVE_INTERVAL = 10
+        
+        
+        
 
         self.Time_queue = deque(np.zeros(self.INIT_LEN))# Time
         self.linear_accel_x_queue = deque(np.zeros(self.INIT_LEN))# linear_accel_x
@@ -87,15 +80,7 @@ class measurement_BNO055:
         self.bno055_sensor = adafruit_bno055.BNO055_I2C(i2c_instance)
 
 
-        self.IsStart = False
-        self.IsStop = True
-        self.IsShow = False
 
-        self.Isfilter=True
-        self.fpass = 3
-        self.fstop = 5
-        self.gpass = 3
-        self.gstop = 8
 
 
 
@@ -260,7 +245,7 @@ class measurement_BNO055:
     
     async def save_data(self):
         batch_df = pd.DataFrame(self.assy_data, columns=self.COLUMNS, dtype=np.float32)
-        await asyncio.to_thread(batch_df.to_csv, self.datapath + '/' + 'measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=False, mode='a')
+        await asyncio.to_thread(batch_df.to_csv, self.SAVE_DATA_PATH + '/' + 'measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=False, mode='a')
         self.assy_data = np.zeros((0, len(self.COLUMNS)))
 
 
@@ -270,18 +255,14 @@ class measurement_BNO055:
         now = datetime.datetime.now(JST)
         timestamp = now.strftime('%Y%m%d%H%M%S')
         
-        os.makedirs(self.datapath + '/' + timestamp)
-        src_file_path = self.datapath + '/' + 'measurement_raw_data.csv'
-        dst_file_path = self.datapath + '/' + timestamp + '/' + timestamp + '_measurement_raw_data.csv'
+        os.makedirs(self.SAVE_DATA_PATH + '/' + timestamp)
+        src_file_path = self.SAVE_DATA_PATH + '/' + 'measurement_raw_data.csv'
+        dst_file_path = self.SAVE_DATA_PATH + '/' + timestamp + '/' + timestamp + '_measurement_raw_data.csv'
         shutil.copy2(src_file_path, dst_file_path)
-        shutil.copy2(src_file_path, self.datapath + '/' + 'backup_measurement_raw_data.csv')
+        shutil.copy2(src_file_path, self.SAVE_DATA_PATH + '/' + 'backup_measurement_raw_data.csv')
         os.remove(src_file_path)
         
-        # self.df.to_csv(self.datapath + '/'+ timestamp +'_measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=True)
-        # if self.Isfilter:
-        #     self.filtered_df = self.filtering(df=self.df, labellist=self.COLUMNS[1:])
-        #     self.filtered_df.to_csv(self.datapath + '/'+ timestamp +'_measurement_filt_data.csv', sep=',', encoding='utf-8', index=False, header=True)
-
+     
 
         print("Dataframe was saved!")
 
@@ -294,12 +275,12 @@ class measurement_BNO055:
         filtered_df = df.copy()
         for idx, labelname in enumerate(labellist):
             filtered_df[labelname] = butterlowpass(x=df[labelname], 
-                                                   fpass=self.fpass,
-                                                   fstop=self.fstop,
-                                                   gpass=self.gpass,
-                                                   gstop=self.gstop,
-                                                   fs=1 / self.sampling_time,
-                                                   dt = self.sampling_time,
+                                                   fpass=self.FPASS,
+                                                   fstop=self.FSTOP,
+                                                   gpass=self.GPASS,
+                                                   gstop=self.GSTOP,
+                                                   fs=1 / self.SAMPLING_TIME,
+                                                   dt = self.SAMPLING_TIME,
                                                    checkflag=False,
                                                    labelname=labelname)
 
@@ -319,7 +300,7 @@ class measurement_BNO055:
         try: 
             while self.IsStart:
                 self.itr_start_time = time.time()# Start time of iteration loop
-                self.current_time = (self.main_loop_clock / self.SAMPLING_FREQUENCY_HZ)# + self.sampling_time# Current time                    
+                self.current_time = (self.main_loop_clock / self.SAMPLING_FREQUENCY_HZ)
                 ## Process / update data stream, concat data
                 """
                 1. get data fron a sensor BNO055
@@ -342,7 +323,7 @@ class measurement_BNO055:
 
 
                 self.itr_end_time = time.time()# End time of iteration loop
-                wait_process(self.sampling_time - (self.itr_end_time - self.itr_start_time))# For keeping sampling frequency
+                wait_process(self.SAMPLING_TIME - (self.itr_end_time - self.itr_start_time))# For keeping sampling frequency
                 self.main_loop_clock += 1
                 
                 if self.main_loop_clock % (self.SAVE_INTERVAL * self.SAMPLING_FREQUENCY_HZ) == 0:
@@ -381,9 +362,12 @@ class measurement_BNO055:
 
 
 
-async def main():
+async def test_main():
     print("Main start")
-    meas_bno055 = measurement_BNO055(SAMPLING_FREQUENCY_HZ=10, seq_len=1000)
+    
+    config = load_config(config_path)
+    
+    meas_bno055 = BNO055(config.sensors['bno055'])
     
     Isneed_calib = False
     if Isneed_calib:
@@ -402,5 +386,5 @@ async def main():
 if __name__ == '__main__':
     import time
     #simple_main()
-    asyncio.run(main())
+    asyncio.run(test_main())
     print()
