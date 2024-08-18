@@ -1,11 +1,11 @@
 # Sensor Configuration
 sensors:
   bno055:
-    sampling_frequency_hz: 10
+    sampling_frequency_hz: 50
     sequence_length: 1000
     save_interval: 10
     data_columns:
-      - "Time"
+      # - "Time"
       - "linear_accel_x"
       - "linear_accel_y"
       - "linear_accel_z"
@@ -37,6 +37,7 @@ sensors:
       is_filter: True
     perform_calibration: false
     save_data_path: /home/rasut/workspaces/VDDM/data
+    is_show_real_time_data: True
 
   elm327:
     sampling_frequency_hz: 10

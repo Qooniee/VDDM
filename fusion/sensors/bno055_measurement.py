@@ -1,31 +1,19 @@
 import time
-import os
-from collections import deque
 import numpy as np
-import sys
-import time
 import adafruit_bno055
 import board
-import matplotlib.pyplot as plt
-import pandas as pd
-import datetime
-import asyncio
-import shutil
+import os
+import sys
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(parent_dir)
+
+from config.config_manager import load_config
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
 
 
-from signalprocessing.filter import butterlowpass
-from utils.tools import wait_process
-from config.config_manager import load_config
-
-path = os.getcwd()
-
 class BNO055:
     def __init__(self, config):
-        
         self.COLUMNS = config.data_columns    
         self.SAMPLING_FREQUENCY_HZ = config.sampling_frequency_hz
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
@@ -37,59 +25,20 @@ class BNO055:
         self.FSTOP = config.filter_params.fstop
         self.GPASS = config.filter_params.gpass
         self.GSTOP = config.filter_params.gstop
-        self.Isfilter=config.filter_params.is_filter
+        self.Isfilter = config.filter_params.is_filter
         
         self.IsStart = False
         self.IsStop = True
-        self.IsShow = False
+        self.Is_show_real_time_data = config.is_show_real_time_data 
 
-        
-        
-        
-
-        self.Time_queue = deque(np.zeros(self.INIT_LEN))# Time
-        self.linear_accel_x_queue = deque(np.zeros(self.INIT_LEN))# linear_accel_x
-        self.linear_accel_y_queue = deque(np.zeros(self.INIT_LEN))# linear_accel_y
-        self.linear_accel_z_queue = deque(np.zeros(self.INIT_LEN))# linear_accel_z
-        self.gyro_x_queue = deque(np.zeros(self.INIT_LEN))# gyro_x
-        self.gyro_y_queue = deque(np.zeros(self.INIT_LEN))# gyro_y
-        self.gyro_z_queue = deque(np.zeros(self.INIT_LEN))# gyro_z
-        self.euler_x_queue = deque(np.zeros(self.INIT_LEN))# euler_x Roll
-        self.euler_y_queue = deque(np.zeros(self.INIT_LEN))# euler_y Roll
-        self.euler_z_queue = deque(np.zeros(self.INIT_LEN))# euler_z yaw
-        self.quat_roll_queue = deque(np.zeros(self.INIT_LEN))# quat_roll
-        self.quat_pitch_queue = deque(np.zeros(self.INIT_LEN))# quat_pitch
-        self.quat_yaw_queue = deque(np.zeros(self.INIT_LEN))# quat_yaw
-        self.quat1_queue = deque(np.zeros(self.INIT_LEN))# quat1 w
-        self.quat2_queue = deque(np.zeros(self.INIT_LEN))# quat2 x
-        self.quat3_queue = deque(np.zeros(self.INIT_LEN))# quat3 y
-        self.quat4_queue = deque(np.zeros(self.INIT_LEN))# quat4 z
-        self.magnetic_x_queue = deque(np.zeros(self.INIT_LEN))# magnetic_x
-        self.magnetic_y_queue = deque(np.zeros(self.INIT_LEN))# magnetic_y
-        self.magnetic_z_queue = deque(np.zeros(self.INIT_LEN))# magnetic_z
-        self.calibstat_sys_queue = deque(np.zeros(self.INIT_LEN))# calibstat_sys
-        self.calibstat_gyro_queue = deque(np.zeros(self.INIT_LEN))# calibstat_gyro
-        self.calibstat_accel_queue = deque(np.zeros(self.INIT_LEN))# calibstat_accel
-        self.calibstat_mag_queue = deque(np.zeros(self.INIT_LEN))# calibstat_mag
-
-        self.current_data_list = np.array([])
-        self.assy_data = np.array([])
-        self.df = pd.DataFrame(columns=self.COLUMNS)
-        self.filtered_df = None
         i2c_instance = board.I2C()
         self.bno055_sensor = adafruit_bno055.BNO055_I2C(i2c_instance)
 
-
-
-
-
-
     def calibration(self):
         print("Start calibration!")
-        while self.bno055_sensor.calibrated is not True:
+        while not self.bno055_sensor.calibrated:
             print('SYS: {0}, Gyro: {1}, Accel: {2}, Mag: {3}'.format(*(self.bno055_sensor.calibration_status)))
-
-
+            time.sleep(1)
 
     def calcEulerfromQuaternion(self, _w, _x, _y, _z):
         try:
@@ -106,285 +55,151 @@ class BNO055:
             print(f"Error in calcEulerfromQuaternion: {e}")
             return 0.0, 0.0, 0.0
 
-
-
-
-
-  
     def get_data_from_BNO055(self):
-        euler_z, euler_y, euler_x = [val for val in self.bno055_sensor.euler]# X: yaw, Y: pitch, Z: roll
-        gyro_x, gyro_y, gyro_z = [val for val in self.bno055_sensor.gyro]# Gyro[rad/s]
-        linear_accel_x, linear_accel_y, linear_accel_z = [val for val in self.bno055_sensor.linear_acceleration]# Linear acceleration[m/s^2]
+        # データを取得
+        euler_z, euler_y, euler_x = [val for val in self.bno055_sensor.euler]  # X: yaw, Y: pitch, Z: roll
+        gyro_x, gyro_y, gyro_z = [val for val in self.bno055_sensor.gyro]  # Gyro[rad/s]
+        linear_accel_x, linear_accel_y, linear_accel_z = [val for val in self.bno055_sensor.linear_acceleration]  # Linear acceleration[m/s^2]
+        quaternion_1, quaternion_2, quaternion_3, quaternion_4 = [val for val in self.bno055_sensor.quaternion]  # Quaternion
+        quat_roll, quat_pitch, quat_yaw = self.calcEulerfromQuaternion(quaternion_1, quaternion_2, quaternion_3, quaternion_4)  # Cal Euler angle from quaternion
+        magnetic_x, magnetic_y, magnetic_z = [val for val in self.bno055_sensor.magnetic]  # Magnetic field
+        calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag = [val for val in self.bno055_sensor.calibration_status]  # Status of calibration
 
-        quaternion_1, quaternion_2, quaternion_3, quaternion_4 = [val for val in self.bno055_sensor.quaternion]# quaternion
-        quat_roll, quat_pitch, quat_yaw = self.calcEulerfromQuaternion(quaternion_1, quaternion_2, quaternion_3, quaternion_4)# Cal Euler angle from quaternion
-        magnetic_x, magnetic_y, magnetic_z = [val for val in self.bno055_sensor.magnetic]# magnetic field
-        calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag = [val for val in self.bno055_sensor.calibration_status]# Status of calibration
+        # データの変換マップ
+        conversion_map = {
+            "linear_accel_x": lambda x: x,
+            "linear_accel_y": lambda y: y,
+            "linear_accel_z": lambda z: z,
+            "gyro_x": lambda x: x,
+            "gyro_y": lambda y: 0.0 if y is None else y,
+            "gyro_z": lambda z: z,
+            "euler_x": lambda x: 0.0 if x is None else (-1) * x,
+            "euler_y": lambda y: 0.0 if y is None else (-1) * y,
+            "euler_z": lambda z: z,
+            "quat_roll": lambda roll: roll,
+            "quat_pitch": lambda pitch: pitch,
+            "quat_yaw": lambda yaw: yaw,
+            "quaternion_1": lambda q1: q1,
+            "quaternion_2": lambda q2: q2,
+            "quaternion_3": lambda q3: q3,
+            "quaternion_4": lambda q4: q4,
+            "magnetic_x": lambda mx: mx,
+            "magnetic_y": lambda my: my,
+            "magnetic_z": lambda mz: mz,
+            "calibstat_sys": lambda sys: sys,
+            "calibstat_gyro": lambda gyro: gyro,
+            "calibstat_accel": lambda accel: accel,
+            "calibstat_mag": lambda mag: mag
+        }
 
-        ## Convert values
-        linear_accel_x = linear_accel_x
-        linear_accel_y = linear_accel_y
-        linear_accel_z = linear_accel_z
-        gyro_x = gyro_x
-        gyro_y = 0.0 if gyro_y == None else gyro_y
-        gyro_z = gyro_z
-        euler_x = 0.0 if euler_x == None else (-1) * euler_x
-        euler_y = 0.0 if euler_y == None else (-1) * euler_y
-        euler_z = euler_z
-        quat_roll = quat_roll
-        quat_pitch = quat_pitch
-        quat_yaw = quat_yaw
-        #quaternion_1, quaternion_2, quaternion_3, quaternion_4 = quaternion_1, quaternion_2, quaternion_3, quaternion_4
-        #magnetic_x, magnetic_y, magnetic_z = magnetic_x, magnetic_y, magnetic_z
+        # データを辞書にまとめる
+        data_dict = {
+            "linear_accel_x": linear_accel_x,
+            "linear_accel_y": linear_accel_y,
+            "linear_accel_z": linear_accel_z,
+            "gyro_x": gyro_x,
+            "gyro_y": gyro_y,
+            "gyro_z": gyro_z,
+            "euler_x": euler_x,
+            "euler_y": euler_y,
+            "euler_z": euler_z,
+            "quat_roll": quat_roll,
+            "quat_pitch": quat_pitch,
+            "quat_yaw": quat_yaw,
+            "quaternion_1": quaternion_1,
+            "quaternion_2": quaternion_2,
+            "quaternion_3": quaternion_3,
+            "quaternion_4": quaternion_4,
+            "magnetic_x": magnetic_x,
+            "magnetic_y": magnetic_y,
+            "magnetic_z": magnetic_z,
+            "calibstat_sys": calibstat_sys,
+            "calibstat_gyro": calibstat_gyro,
+            "calibstat_accel": calibstat_accel,
+            "calibstat_mag": calibstat_mag
+        }
 
-        return linear_accel_x, linear_accel_y, linear_accel_z, \
-                gyro_x, gyro_y, gyro_z, \
-                euler_x, euler_y, euler_z, \
-                quat_roll, quat_pitch, quat_yaw, \
-                quaternion_1, quaternion_2, quaternion_3, quaternion_4, \
-                magnetic_x, magnetic_y, magnetic_z,\
-                calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag
+        # 設定されたデータカラムのみを返す
+        return tuple(conversion_map[column](data_dict[column]) for column in self.COLUMNS)
 
 
-    def get_update_data_stream(self, Isreturnval=True):
-        def update_queue(stream_queue, val):
-            stream_queue.popleft()
-            stream_queue.append(val)
-            return stream_queue
-        
-        linear_accel_x, linear_accel_y, linear_accel_z, \
-        gyro_x, gyro_y, gyro_z, \
-        euler_x, euler_y, euler_z, \
-        quat_roll, quat_pitch, quat_yaw, \
-        quat1, quat2, quat3, quat4, \
-        magnetic_x, magnetic_y, magnetic_z, \
-        calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag = self.get_data_from_BNO055()
-
-        update_queue(self.Time_queue, self.current_time)
-        update_queue(self.linear_accel_x_queue, linear_accel_x)
-        update_queue(self.linear_accel_y_queue, linear_accel_y)
-        update_queue(self.linear_accel_z_queue, linear_accel_z)
-        update_queue(self.gyro_x_queue, gyro_x)
-        update_queue(self.gyro_y_queue, gyro_y)
-        update_queue(self.gyro_z_queue, gyro_z)
-        update_queue(self.euler_x_queue, euler_x)
-        update_queue(self.euler_y_queue, euler_y)
-        update_queue(self.euler_z_queue, euler_z)
-        update_queue(self.quat_roll_queue, quat_roll)
-        update_queue(self.quat_pitch_queue, quat_pitch)
-        update_queue(self.quat_yaw_queue, quat_yaw)
-        update_queue(self.quat1_queue, quat1)
-        update_queue(self.quat2_queue, quat2)
-        update_queue(self.quat3_queue, quat3)
-        update_queue(self.quat4_queue, quat4)
-        update_queue(self.magnetic_x_queue, magnetic_x)
-        update_queue(self.magnetic_y_queue, magnetic_y)
-        update_queue(self.magnetic_z_queue, magnetic_z)
-        update_queue(self.calibstat_sys_queue, calibstat_sys)
-        update_queue(self.calibstat_gyro_queue, calibstat_gyro)
-        update_queue(self.calibstat_accel_queue, calibstat_accel)
-        update_queue(self.calibstat_mag_queue, calibstat_mag)
-        
-        if Isreturnval:
-            return  np.array([linear_accel_x, linear_accel_y, linear_accel_z, \
-                    gyro_x, gyro_y, gyro_z, \
-                    euler_x, euler_y, euler_z, \
-                    quat_roll, quat_pitch, quat_yaw, \
-                    quat1, quat2, quat3, quat4, \
-                    magnetic_x, magnetic_y, magnetic_z, \
-                    calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag])
+def format_data_for_display(data, labels):
+    formatted_str = ""
+    for label, value in zip(labels, data):
+        if value is None:
+            value = "None"
         else:
-            return False
-
-    # def concat_meas_data(self):
-    #     dataset = np.append(self.current_time, self.current_data_list).reshape(1, -1)
-    #     if self.main_loop_clock == 0:
-    #         self.assy_data = dataset
-    #     else:
-    #         self.assy_data = np.concatenate([self.assy_data, dataset], axis=0)
-            
-            
-    def concat_meas_data(self):
-            current_data = np.append([self.current_time], self.current_data_list)
-            dataset = current_data.reshape(1, -1)  # Reshape to ensure 2D
-            
-            print(f'self.assy_data shape: {self.assy_data.shape}')
-            print(f'dataset shape: {dataset.shape}')
-            
-            if self.main_loop_clock == 0:
-                self.assy_data = dataset
-            else:
-                # Ensure the dimensions are correct for concatenation
-                try:
-                    if self.assy_data.shape[1] == dataset.shape[1]:
-                        self.assy_data = np.concatenate([self.assy_data, dataset], axis=0)
-                    else:
-                        print("Dimension mismatch between assy_data and dataset")
-                except IndexError as e:
-                    print("IndexError during concatenation:", e)
-            
+            value = f"{value:.4f}"
+        formatted_str += f"{label}: {value} / "
+    return formatted_str.rstrip(" / ")
 
 
-
-
-
-    def show_current_data(self, data_list, data_label):
-        message = ""
-        for i in range(len(self.COLUMNS)-1):
-            val = data_list[i] if data_list[i] != None else "No val"
-            message = message + data_label[i] + ": " + str(val) + " / "
-
-        return message
-
-
-    # async def save_data(self):
-    #     # Convert the DataFrame from the numpy array
-    #     self.df = pd.DataFrame(self.assy_data, columns=self.COLUMNS, dtype=np.float32)
-    #     await save_data_async(self.df, self.current_file_path)
-    #     self.assy_data = np.zeros((0, len(self.COLUMNS)))  # Clear data but keep the correct shape
+def test_main():
+    from utils.tools import wait_process
+    from time import perf_counter
+    import matplotlib.pyplot as plt
     
-    async def save_data(self):
-        batch_df = pd.DataFrame(self.assy_data, columns=self.COLUMNS, dtype=np.float32)
-        await asyncio.to_thread(batch_df.to_csv, self.SAVE_DATA_PATH + '/' + 'measurement_raw_data.csv', sep=',', encoding='utf-8', index=False, header=False, mode='a')
-        self.assy_data = np.zeros((0, len(self.COLUMNS)))
-
-
-    def finish_measurement_and_save_data(self):
-        t_delta = datetime.timedelta(hours=9)
-        JST = datetime.timezone(t_delta, 'JST')# You have to set your timezone
-        now = datetime.datetime.now(JST)
-        timestamp = now.strftime('%Y%m%d%H%M%S')
-        
-        os.makedirs(self.SAVE_DATA_PATH + '/' + timestamp)
-        src_file_path = self.SAVE_DATA_PATH + '/' + 'measurement_raw_data.csv'
-        dst_file_path = self.SAVE_DATA_PATH + '/' + timestamp + '/' + timestamp + '_measurement_raw_data.csv'
-        shutil.copy2(src_file_path, dst_file_path)
-        shutil.copy2(src_file_path, self.SAVE_DATA_PATH + '/' + 'backup_measurement_raw_data.csv')
-        os.remove(src_file_path)
-        
-     
-
-        print("Dataframe was saved!")
-
-
-    def filtering(self, df, labellist):
-        """
-        Label list must dropped "Time" label.
-        Filter function doesn't need "Time" for the computation.
-        """
-        filtered_df = df.copy()
-        for idx, labelname in enumerate(labellist):
-            filtered_df[labelname] = butterlowpass(x=df[labelname], 
-                                                   fpass=self.FPASS,
-                                                   fstop=self.FSTOP,
-                                                   gpass=self.GPASS,
-                                                   gstop=self.GSTOP,
-                                                   fs=1 / self.SAMPLING_TIME,
-                                                   dt = self.SAMPLING_TIME,
-                                                   checkflag=False,
-                                                   labelname=labelname)
-
-        return filtered_df
-
-    async def meas_start(self):
-        
-        self.main_loop_clock = 0# Clock
-        ## Measurement Main Loop ##
-        print("Measurement is started")
-
-        wait_process(2)# sensor initialization
-        self.meas_start_time = time.time()#Logic start time
-        self.IsStart = True
-        self.IsStop = False
-        # Main Loop for measurement
-        try: 
-            while self.IsStart:
-                self.itr_start_time = time.time()# Start time of iteration loop
-                self.current_time = (self.main_loop_clock / self.SAMPLING_FREQUENCY_HZ)
-                ## Process / update data stream, concat data
-                """
-                1. get data fron a sensor BNO055
-                2. deque data from que
-                3. enque data to que
-                4. create data set at current sample
-                5. concatinate data 
-                6. Convert numpuy aray to dataframe
-                7. save dataframe
-
-                """
-                self.current_data_list = self.get_update_data_stream(Isreturnval=True)
-                self.concat_meas_data()
-                if self.IsShow:
-                    message = self.show_current_data(self.current_data_list, self.COLUMNS[1:])
-                    print(f'Time: {self.current_time:.3f}')
-                    print(message)
-                else:
-                    message = self.show_current_data(self.current_data_list, self.COLUMNS[1:])
-
-
-                self.itr_end_time = time.time()# End time of iteration loop
-                wait_process(self.SAMPLING_TIME - (self.itr_end_time - self.itr_start_time))# For keeping sampling frequency
-                self.main_loop_clock += 1
-                
-                if self.main_loop_clock % (self.SAVE_INTERVAL * self.SAMPLING_FREQUENCY_HZ) == 0:
-                    await self.save_data()
-                
-
-
-        except Exception as e:
-            print("Error")
-            print(e)
-        
-        except KeyboardInterrupt:
-            self.meas_end_time = time.time()#0.002s
-            
-            #plt.plot(self.Time_queue, self.euler_x_queue, 'r', '*')
-            #plt.show()
-            
-            # Elapsed time
-            self.elapsed_time = self.meas_end_time - self.meas_start_time
-            print("KeybordInterrupt!")     
-            print(f'Elapsed Time: {self.elapsed_time:.3f}')
-
-            # concat and save data
-            await self.save_data()
-
-            # save whole data
-            self.finish_measurement_and_save_data()
-
-
-
-        print("Finish")
-
-
-    def Run(self):
-        print()
-
-
-
-async def test_main():
     print("Main start")
     
     config = load_config(config_path)
-    
     meas_bno055 = BNO055(config.sensors['bno055'])
     
-    Isneed_calib = False
-    if Isneed_calib:
-        meas_bno055.calibration()
-        print("Calibration was finished!")
+    start_time = perf_counter()
+    sampling_counter = 0
+    # 0基準のため最初のサンプリングは0秒に紐づけられる
+    try:
+        main_loop_start_time = perf_counter()
+        while True:
+            iteration_start_time = perf_counter()
+            
+            # データ取得処理
+            data = meas_bno055.get_data_from_BNO055()
+            current_time = perf_counter() - start_time
+            sampling_counter += 1
     
-    if True:
-        meas_bno055.IsShow = True
-        await meas_bno055.meas_start()
-
-
+            if meas_bno055.Is_show_real_time_data:
+                formatted_data = format_data_for_display(data, meas_bno055.COLUMNS)
+                # 現在時間    
+                print("--------------------------------------------------------------------")
+                print("Current Time is: {:.3f}".format(current_time))
+                print(formatted_data)
+            
+            # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
+            elapsed_time = perf_counter() - iteration_start_time
+            sleep_time = meas_bno055.SAMPLING_TIME - elapsed_time
+            if sleep_time > 0:
+                wait_process(sleep_time)
+    
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+    
+    finally:
+        # サンプリングの個数と現在時間からサンプリングの遅れを計算
+        main_loop_end_time = perf_counter() - main_loop_start_time
+        print("Program terminated")
+        print("main loop is ended. current time is: {:.3f}".format(current_time))
+        print("main loop is ended. end time is: {:.3f}".format(main_loop_end_time))
+        print("sampling num is: {}".format(sampling_counter))# 0基準であるためcurrent_time + 1個のサンプルになる
         
         
-  
+        
+        # 理想的なサンプリング時間の計算
+        ideal_time = ((sampling_counter - 1) / meas_bno055.SAMPLING_FREQUENCY_HZ)
+        # 遅れの計算
+        delay_time = current_time - ideal_time
+        # 遅れの割合をサンプリング時間で割った値を信頼性率とする
+        sampling_reliability_rate = (delay_time / (sampling_counter / meas_bno055.SAMPLING_FREQUENCY_HZ)) * 100
+        
+        
+        print("sampling delay is: {:.3f} s".format(delay_time))
+        print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
+        
+        
+        
+        
+
+
 
 if __name__ == '__main__':
-    import time
-    #simple_main()
-    asyncio.run(test_main())
-    print()
+    from time import perf_counter
+    test_main()
