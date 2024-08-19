@@ -35,16 +35,16 @@ sensors:
       gpass: 3
       gstop: 8
       is_filter: True
-    perform_calibration: false
+    perform_calibration: False
     save_data_path: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
+    is_offline: False
 
   elm327:
-    sampling_frequency_hz: 10
+    sampling_frequency_hz: 50
     sequence_length: 1000
     save_interval: 10
     data_columns:
-      - "Time"
       - "SPEED"
       - "RPM"
     filter_params:
@@ -52,7 +52,11 @@ sensors:
       fstop: 5
       gpass: 3
       gstop: 8
-    perform_calibration: false
+      is_filter: True
+    save_data_path: /home/rasut/workspaces/VDDM/data
+    is_show_real_time_data: True
+    is_offline: True
+
 
 general:
   data_path: "./data"

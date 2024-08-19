@@ -55,7 +55,7 @@ class BNO055:
             print(f"Error in calcEulerfromQuaternion: {e}")
             return 0.0, 0.0, 0.0
 
-    def get_data_from_BNO055(self):
+    def get_data_from_sensor(self):
         # データを取得
         euler_z, euler_y, euler_x = [val for val in self.bno055_sensor.euler]  # X: yaw, Y: pitch, Z: roll
         gyro_x, gyro_y, gyro_z = [val for val in self.bno055_sensor.gyro]  # Gyro[rad/s]
@@ -123,14 +123,23 @@ class BNO055:
         return tuple(conversion_map[column](data_dict[column]) for column in self.COLUMNS)
 
 
-def format_data_for_display(data, labels):
+def format_sensor_data(data, labels):
     formatted_str = ""
-    for label, value in zip(labels, data):
-        if value is None:
-            value = "None"
-        else:
-            value = f"{value:.4f}"
-        formatted_str += f"{label}: {value} / "
+    if isinstance(data, dict):
+        for label in labels:
+            value = data.get(label, None)
+            if value is None:
+                value = "None"
+            else:
+                value = f"{value:.4f}"
+            formatted_str += f"{label}: {value} / "
+    else:
+        for label, value in zip(labels, data):
+            if value is None:
+                value = "None"
+            else:
+                value = f"{value:.4f}"
+            formatted_str += f"{label}: {value} / "
     return formatted_str.rstrip(" / ")
 
 
@@ -153,12 +162,12 @@ def test_main():
             iteration_start_time = perf_counter()
             
             # データ取得処理
-            data = meas_bno055.get_data_from_BNO055()
+            data = meas_bno055.get_data_from_sensor()
             current_time = perf_counter() - start_time
             sampling_counter += 1
     
             if meas_bno055.Is_show_real_time_data:
-                formatted_data = format_data_for_display(data, meas_bno055.COLUMNS)
+                formatted_data = format_sensor_data(data, meas_bno055.COLUMNS)
                 # 現在時間    
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
@@ -201,5 +210,4 @@ def test_main():
 
 
 if __name__ == '__main__':
-    from time import perf_counter
     test_main()
