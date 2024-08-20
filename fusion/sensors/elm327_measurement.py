@@ -63,9 +63,17 @@ class ELM327:
             return res
 
     def get_data_from_sensor(self):
+        """_summary_
+
+        Returns:
+            _type_: 辞書型データ
+        """
+        if self.is_offline:
+            data = self.get_data_from_sensor_stub()
+        else:
         # データを取得し、辞書形式で保存
-        data_dict = {column: self.get_obd2_value(column) for column in self.COLUMNS}
-        return data_dict
+            data = {column: self.get_obd2_value(column) for column in self.COLUMNS}
+        return data
 
     def get_obd2_value(self, column):
         # OBDコマンドを取得し、結果を処理する
@@ -132,10 +140,8 @@ def test_main():
             iteration_start_time = perf_counter()
             
             # データ取得処理
-            if meas_elm327.is_offline:
-                data = meas_elm327.get_data_from_sensor_stub()
-            else: 
-                data = meas_elm327.get_data_from_sensor()
+
+            data = meas_elm327.get_data_from_sensor()
             
             current_time = perf_counter() - start_time
             sampling_counter += 1
