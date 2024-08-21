@@ -62,3 +62,46 @@ def disp_historicalgraph(df, mode="gyro"):
     #plt.show()
     #fig = plt.gcf()
     return
+
+
+
+import math
+
+def format_sensor_fusion_data(data, labels):
+    formatted_str = ""
+    if isinstance(data, dict):
+        for label in labels:
+            value = "None"
+            for sensor_data in data.values():
+                if isinstance(sensor_data, dict):
+                    value = sensor_data.get(label, "None")
+                    if value != "None":
+                        break
+            
+            # None または NaN、数値の場合に応じてフォーマット
+            if value is None:
+                formatted_str += f"{label}: None / "
+            elif isinstance(value, float) and math.isnan(value):
+                formatted_str += f"{label}: NaN / "
+            else:
+                try:
+                    formatted_value = f"{float(value):.4f}"
+                except (ValueError, TypeError):
+                    formatted_str += f"{label}: {value} / "
+                else:
+                    formatted_str += f"{label}: {formatted_value} / "
+    else:
+        for label, value in zip(labels, data):
+            if value is None:
+                formatted_str += f"{label}: None / "
+            elif isinstance(value, float) and math.isnan(value):
+                formatted_str += f"{label}: NaN / "
+            else:
+                try:
+                    formatted_value = f"{float(value):.4f}"
+                except (ValueError, TypeError):
+                    formatted_str += f"{label}: {value} / "
+                else:
+                    formatted_str += f"{label}: {formatted_value} / "
+    
+    return formatted_str.rstrip(" / ")

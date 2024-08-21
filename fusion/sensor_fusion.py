@@ -17,7 +17,7 @@ class SensorFactory:
     def create_sensor(sensor_type, config):
         try:
             # センサータイプに基づいてモジュールをインポート
-            module = importlib.import_module(f"sensors.{sensor_type}_measurement")
+            module = importlib.import_module(f"fusion.sensors.{sensor_type}_measurement")
             # センサークラスを取得
             sensor_class = getattr(module, f"{sensor_type.upper()}")
             # センサーインスタンスを作成して返す
@@ -25,6 +25,7 @@ class SensorFactory:
         except (ImportError, AttributeError) as e:
             print(f"Error creating sensor {sensor_type}: {e}")
             return None
+        
 
 class Sensors:
     def __init__(self, config):
@@ -71,8 +72,12 @@ class Sensors:
         except Exception as e:
             print(e)
     
-    def start_all_measurements(self):
-        self.is_running = True
+    # def start_all_measurements(self):
+    #     self.is_running = True
+    #     while self.is_running:
+    #         print("hello")
+    #         wait_process(1)
+        
         
 
 import math
@@ -127,7 +132,7 @@ def sensor_fusion_main():
     sensors = Sensors(config["master"])
     print("Called an instance of Sensors class")
     
-    sensors.start_all_measurements()
+    # sensors.start_all_measurements()
     start_time = perf_counter()
     sampling_counter = 0
     try:
