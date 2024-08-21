@@ -1,7 +1,7 @@
 # Sensor Configuration
 sensors:
   bno055:
-    sampling_frequency_hz: 50
+    sampling_frequency_hz: 10
     sequence_length: 1000
     save_interval: 10
     data_columns:
@@ -41,12 +41,14 @@ sensors:
     is_offline: False
 
   elm327:
-    sampling_frequency_hz: 50
+    sampling_frequency_hz: 10
     sequence_length: 1000
     save_interval: 10
     data_columns:
       - "SPEED"
       - "RPM"
+      - "THROTTLE_POS"
+      - "THROTTLE_POS_B"
     filter_params:
       fpass: 3
       fstop: 5
@@ -55,11 +57,11 @@ sensors:
       is_filter: True
     save_data_path: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: True
+    is_offline: False
 
 
 master:
-  sampling_frequency_hz: 1
+  sampling_frequency_hz: 10
   sequence_length: 1000
   save_interval: 10
   filter_params:

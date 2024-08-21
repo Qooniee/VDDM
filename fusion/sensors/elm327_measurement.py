@@ -75,14 +75,35 @@ class ELM327:
             data = {column: self.get_obd2_value(column) for column in self.COLUMNS}
         return data
 
+    def get_obd2_value_debug(self, column):
+        # OBDコマンドを取得し、結果を処理する
+        command = getattr(obd.commands, column, None)
+        if command:
+            response = self.connection.query(command)
+            if response:
+                print(f"Response for command '{command}': {response}")
+                if response.value is not None:  # Noneチェック
+                    print(f"Response value for command '{command}': {response.value}")
+                    return response.value.magnitude
+                else:
+                    print(f"No value in response for command '{command}'")
+            else:
+                print(f"No response for command '{command}'")
+        else:
+            print(f"No command found for column '{column}'")
+        return None
+
+
     def get_obd2_value(self, column):
         # OBDコマンドを取得し、結果を処理する
         command = getattr(obd.commands, column, None)
         if command:
             response = self.connection.query(command)
-            if response and response.value:
+            if response.value is not None:  # Noneチェック
                 return response.value.magnitude
         return None
+
+
 
     def get_data_from_sensor_stub(self):
         # データのスタブを生成
