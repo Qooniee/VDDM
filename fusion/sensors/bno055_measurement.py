@@ -40,17 +40,36 @@ class BNO055:
             print('SYS: {0}, Gyro: {1}, Accel: {2}, Mag: {3}'.format(*(self.bno055_sensor.calibration_status)))
             time.sleep(1)
 
+
     def calcEulerfromQuaternion(self, _w, _x, _y, _z):
+        if None in (_w, _x, _y, _z):
+            print(f"Error: One or more quaternion values are None: {_w}, {_x}, {_y}, {_z}")
+            return 0.0, 0.0, 0.0
+        
         try:
             sqw = _w ** 2
             sqx = _x ** 2
             sqy = _y ** 2
             sqz = _z ** 2
             COEF_EULER2DEG = 57.2957795131
-            yaw = COEF_EULER2DEG * (np.arctan2(2.0 * (_x * _y + _z * _w), (sqx - sqy - sqz + sqw))).item()  # Yaw
-            pitch = COEF_EULER2DEG * (np.arcsin(-2.0 * (_x * _z - _y * _w) / (sqx + sqy + sqz + sqw))).item()  # Pitch
-            roll = COEF_EULER2DEG * (np.arctan2(2.0 * (_y * _z + _x * _w), (-sqx - sqy + sqz + sqw))).item()  # Roll
-            return roll, pitch, yaw
+            
+            # Yaw
+            term1 = 2.0 * (_x * _y + _z * _w)
+            term2 = sqx - sqy - sqz + sqw
+            yaw = np.arctan2(term1, term2)
+            
+            # Pitch
+            term1 = -2.0 * (_x * _z - _y * _w)
+            term2 = sqx + sqy + sqz + sqw
+            pitch = np.arcsin(term1 / term2) if -1 <= term1 / term2 <= 1 else 0.0
+            
+            # Roll
+            term1 = 2.0 * (_y * _z + _x * _w)
+            term2 = -sqx - sqy + sqz + sqw
+            roll = np.arctan2(term1, term2)
+            
+            return COEF_EULER2DEG * roll, COEF_EULER2DEG * pitch, COEF_EULER2DEG * yaw
+        
         except Exception as e:
             print(f"Error in calcEulerfromQuaternion: {e}")
             return 0.0, 0.0, 0.0

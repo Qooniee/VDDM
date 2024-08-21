@@ -57,7 +57,7 @@ sensors:
       is_filter: True
     save_data_path: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: False
+    is_offline: True
 
 
 master:

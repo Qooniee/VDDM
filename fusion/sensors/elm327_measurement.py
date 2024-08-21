@@ -10,6 +10,8 @@ import scipy
 from scipy import signal
 import matplotlib as plt
 import sys
+from collections import defaultdict
+import random
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.append(parent_dir)
@@ -31,6 +33,7 @@ class ELM327:
         self.GPASS = config.filter_params.gpass
         self.GSTOP = config.filter_params.gstop
         self.Isfilter = config.filter_params.is_filter
+        self.res = self.connect_to_elm327()
         
         self.is_offline = config.is_offline
         self.IsStart = False
@@ -107,9 +110,16 @@ class ELM327:
 
     def get_data_from_sensor_stub(self):
         # データのスタブを生成
-        data_stub = {column: np.abs(np.random.randn()).astype(np.float32).item() for column in self.COLUMNS}
+        data_stub = {column: np.abs(np.random.randn()).astype(np.float32).item() for column in self.COLUMNS}        
+        # ランダムにNoneまたは0.0を挿入する処理を実施
+        if random.choice([True, False]):
+            random_column = random.choice(self.COLUMNS)
+            if random.choice([True, False]):
+                data_stub[random_column] = None
+            else:
+                data_stub[random_column] = 0.0
+        
         return data_stub
-
 def format_data_for_display(data, labels):
     formatted_str = ""
     for label, value in zip(labels, data.values()):
@@ -151,7 +161,7 @@ def test_main():
     print("Main start")
     config = load_config(config_path)
     meas_elm327 = ELM327(config.sensors['elm327'])
-    res = meas_elm327.connect_to_elm327()
+    #res = meas_elm327.connect_to_elm327()
     
     start_time = perf_counter()
     sampling_counter = 0

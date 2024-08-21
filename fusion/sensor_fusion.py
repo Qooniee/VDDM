@@ -2,6 +2,8 @@ import os
 import sys
 import importlib
 from time import perf_counter
+from collections import defaultdict
+
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
@@ -61,30 +63,59 @@ class Sensors:
     def collect_data(self):
         """全てのセンサーからデータを収集し、動的に辞書に格納する"""
         data = {}
-        for sensor_type, sensor in self.sensor_instances.items():
-            # 各センサーからデータを取得し、辞書に格納
-            data[sensor_type] = sensor.get_data_from_sensor()
-        return data
+        try:
+            for sensor_type, sensor in self.sensor_instances.items():
+                # 各センサーからデータを取得し、辞書に格納
+                data[sensor_type] = sensor.get_data_from_sensor()
+            return data
+        except Exception as e:
+            print(e)
     
     def start_all_measurements(self):
         self.is_running = True
+        
+
+import math
 
 def format_sensor_fusion_data(data, labels):
     formatted_str = ""
     if isinstance(data, dict):
         for label in labels:
-            # 各センサーからラベルに対応するデータを検索
             value = "None"
             for sensor_data in data.values():
                 if isinstance(sensor_data, dict):
                     value = sensor_data.get(label, "None")
                     if value != "None":
                         break
-            # データが存在する場合、フォーマットして表示
-            if value != "None":
-                value = f"{value:.4f}"
-            formatted_str += f"{label}: {value} / "
+            
+            # None または NaN、数値の場合に応じてフォーマット
+            if value is None:
+                formatted_str += f"{label}: None / "
+            elif isinstance(value, float) and math.isnan(value):
+                formatted_str += f"{label}: NaN / "
+            else:
+                try:
+                    formatted_value = f"{float(value):.4f}"
+                except (ValueError, TypeError):
+                    formatted_str += f"{label}: {value} / "
+                else:
+                    formatted_str += f"{label}: {formatted_value} / "
+    else:
+        for label, value in zip(labels, data):
+            if value is None:
+                formatted_str += f"{label}: None / "
+            elif isinstance(value, float) and math.isnan(value):
+                formatted_str += f"{label}: NaN / "
+            else:
+                try:
+                    formatted_value = f"{float(value):.4f}"
+                except (ValueError, TypeError):
+                    formatted_str += f"{label}: {value} / "
+                else:
+                    formatted_str += f"{label}: {formatted_value} / "
+    
     return formatted_str.rstrip(" / ")
+
 
 
 
