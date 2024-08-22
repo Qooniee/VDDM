@@ -36,9 +36,9 @@ sensors:
       gstop: 8
       is_filter: True
     perform_calibration: False
-    save_data_path: /home/rasut/workspaces/VDDM/data
+    save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: False
+    is_offline: True
 
   elm327:
     sampling_frequency_hz: 10
@@ -55,7 +55,7 @@ sensors:
       gpass: 3
       gstop: 8
       is_filter: True
-    save_data_path: /home/rasut/workspaces/VDDM/data
+    save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
     is_offline: True
 
@@ -70,7 +70,7 @@ master:
       gpass: 3
       gstop: 8
       is_filter: True
-  save_data_path: /home/rasut/workspaces/VDDM/data
+  save_data_dir: /home/rasut/workspaces/VDDM/data
   is_show_real_time_data: True
   is_offline: True
-  
+  timezone: "JST"

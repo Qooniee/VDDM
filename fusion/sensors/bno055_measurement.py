@@ -17,7 +17,7 @@ class BNO055:
         self.COLUMNS = config.data_columns    
         self.SAMPLING_FREQUENCY_HZ = config.sampling_frequency_hz
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
-        self.SAVE_DATA_PATH = config.save_data_path
+        self.SAVE_DATA_DIR = config.save_data_dir
         self.SEQUENCE_LENGTH = config.sequence_length
         self.INIT_LEN = self.SEQUENCE_LENGTH // self.SAMPLING_FREQUENCY_HZ
         self.SAVE_INTERVAL = config.save_interval

@@ -3,6 +3,11 @@ import sys
 import importlib
 from time import perf_counter
 from collections import defaultdict
+import pandas as pd
+import datetime
+import asyncio
+import numpy as np
+
 
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -14,6 +19,12 @@ from utils.visualize_data import format_sensor_fusion_data
 
 
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
+SAVE_INTERVAL = 10  # Save interval in seconds
+
+# asyncio.to_threadにより同期関数を別スレッドで実行し、その結果を非同期で扱う
+async def save_data_async(df, path):
+    await asyncio.to_thread(df.to_csv, path, sep=',', encoding='utf-8', index=False, header=False, mode='a')
+
 
 class SensorFactory:
     @staticmethod
