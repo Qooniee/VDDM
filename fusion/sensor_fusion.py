@@ -10,6 +10,9 @@ sys.path.append(parent_dir)
 
 from config import config_manager
 from utils.tools import wait_process
+#from utils.visualize_data import format_sensor_fusion_data
+
+
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
 
 class SensorFactory:
@@ -135,6 +138,8 @@ def sensor_fusion_main():
     # sensors.start_all_measurements()
     start_time = perf_counter()
     sampling_counter = 0
+    current_time = 0
+    sensors.is_running = True
     try:
         main_loop_start_time = perf_counter()
         while sensors.is_running:
