@@ -10,7 +10,7 @@ sys.path.append(parent_dir)
 
 from config import config_manager
 from utils.tools import wait_process
-#from utils.visualize_data import format_sensor_fusion_data
+from utils.visualize_data import format_sensor_fusion_data
 
 
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
@@ -51,10 +51,6 @@ class Sensors:
         self.is_filter = config.filter_params.is_filter
         self.is_show_real_time_data = config.is_show_real_time_data
         
-        
-        
-        
-        
         for sensor_type in self.sensor_list:
             sensor_config = self.config.sensors[sensor_type]
             sensor_instance = SensorFactory.create_sensor(sensor_type, sensor_config)
@@ -75,6 +71,10 @@ class Sensors:
         except Exception as e:
             print(e)
     
+    
+
+    
+    
     # def start_all_measurements(self):
     #     self.is_running = True
     #     while self.is_running:
@@ -82,53 +82,6 @@ class Sensors:
     #         wait_process(1)
         
         
-
-import math
-
-def format_sensor_fusion_data(data, labels):
-    formatted_str = ""
-    if isinstance(data, dict):
-        for label in labels:
-            value = "None"
-            for sensor_data in data.values():
-                if isinstance(sensor_data, dict):
-                    value = sensor_data.get(label, "None")
-                    if value != "None":
-                        break
-            
-            # None または NaN、数値の場合に応じてフォーマット
-            if value is None:
-                formatted_str += f"{label}: None / "
-            elif isinstance(value, float) and math.isnan(value):
-                formatted_str += f"{label}: NaN / "
-            else:
-                try:
-                    formatted_value = f"{float(value):.4f}"
-                except (ValueError, TypeError):
-                    formatted_str += f"{label}: {value} / "
-                else:
-                    formatted_str += f"{label}: {formatted_value} / "
-    else:
-        for label, value in zip(labels, data):
-            if value is None:
-                formatted_str += f"{label}: None / "
-            elif isinstance(value, float) and math.isnan(value):
-                formatted_str += f"{label}: NaN / "
-            else:
-                try:
-                    formatted_value = f"{float(value):.4f}"
-                except (ValueError, TypeError):
-                    formatted_str += f"{label}: {value} / "
-                else:
-                    formatted_str += f"{label}: {formatted_value} / "
-    
-    return formatted_str.rstrip(" / ")
-
-
-
-
-
-
 def sensor_fusion_main():
     print("Start sensor fusion main")
     config = config_manager.load_config(config_path)
