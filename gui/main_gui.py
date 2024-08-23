@@ -31,7 +31,7 @@ def setup_gui():
     
     root = tk.Tk()
     root.title("Measurement Control")
-    root.geometry("800x600")  # ウィンドウサイズを拡大
+    root.geometry("2048x1200")  # ウィンドウサイズを拡大
     root.configure(bg='black')
 
     # GUIのカスタマイズ

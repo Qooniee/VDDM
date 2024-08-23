@@ -38,7 +38,7 @@ sensors:
     perform_calibration: False
     save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: True
+    is_offline: False
 
   elm327:
     sampling_frequency_hz: 10
@@ -57,7 +57,7 @@ sensors:
       is_filter: True
     save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: True
+    is_offline: False
 
 
 master:
@@ -72,5 +72,5 @@ master:
       is_filter: True
   save_data_dir: /home/rasut/workspaces/VDDM/data
   is_show_real_time_data: True
-  is_offline: True
+  is_offline: False
   timezone: "JST"
