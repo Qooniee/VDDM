@@ -38,26 +38,26 @@ sensors:
     perform_calibration: False
     save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: False
+    is_offline: True
 
-  elm327:
-    sampling_frequency_hz: 10
-    sequence_length: 1000
-    save_interval: 10
-    data_columns:
-      - "SPEED"
-      - "RPM"
-      - "THROTTLE_POS"
-      - "THROTTLE_POS_B"
-    filter_params:
-      fpass: 3
-      fstop: 5
-      gpass: 3
-      gstop: 8
-      is_filter: True
-    save_data_dir: /home/rasut/workspaces/VDDM/data
-    is_show_real_time_data: True
-    is_offline: False
+  # elm327:
+  #   sampling_frequency_hz: 10
+  #   sequence_length: 1000
+  #   save_interval: 10
+  #   data_columns:
+  #     - "SPEED"
+  #     - "RPM"
+  #     - "THROTTLE_POS"
+  #     - "THROTTLE_POS_B"
+  #   filter_params:
+  #     fpass: 3
+  #     fstop: 5
+  #     gpass: 3
+  #     gstop: 8
+  #     is_filter: True
+  #   save_data_dir: /home/rasut/workspaces/VDDM/data
+  #   is_show_real_time_data: True
+  #   is_offline: True
 
 
 master:
@@ -72,5 +72,5 @@ master:
       is_filter: True
   save_data_dir: /home/rasut/workspaces/VDDM/data
   is_show_real_time_data: True
-  is_offline: False
+  is_offline: True
   timezone: "JST"

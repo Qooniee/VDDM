@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-# 親ディレクトリをパスに追加
+# Add parent directory to path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -13,12 +13,23 @@ from config.config_manager import load_config
 
 class MeasurementControl:
     def __init__(self, config_path):
+        """
+        Initializes the MeasurementControl class with the given configuration path.
+
+        Args:
+            config_path (str): Path to the configuration file.
+        """
         self.is_running = False
-        self.sensors = Sensors(load_config(config_path)["master"])  # センサーを初期化
-        self.loop = asyncio.new_event_loop()  # メインスレッド以外で使用するための新しいイベントループ
+        self.sensors = Sensors(load_config(config_path)["master"])  # Initialize sensors
+        self.loop = asyncio.new_event_loop()  # Create a new event loop for non-main thread usage
         self.config_path = config_path
     
     async def start_measurement(self):
+        """
+        Starts the measurement process if it is not already running.
+
+        If the measurement is already running, it will print a message indicating so.
+        """
         if not self.is_running:
             self.is_running = True
             print("Measurement started.")
@@ -27,6 +38,11 @@ class MeasurementControl:
             print("Measurement is already running.")
     
     def stop_measurement(self):
+        """
+        Stops the measurement process if it is currently running.
+
+        If the measurement is not running, it will print a message indicating so.
+        """
         if self.is_running:
             self.is_running = False
             print("Measurement stopped.")
@@ -34,10 +50,22 @@ class MeasurementControl:
             print("Measurement is not running.")
     
     async def save_measurement_data(self):
-        print("pressed save button")
+        """
+        Triggers the process to finalize the measurement and save the data.
+
+        This function should be called to save the collected data.
+        """
+        print("Pressed save button")
         await self.sensors.finish_measurement_and_save_data()
 
     async def measurement(self, sensors, config):
+        """
+        Handles the measurement process, including data collection, processing, and display.
+
+        Args:
+            sensors (Sensors): The Sensors instance used for data collection.
+            config (dict): Configuration dictionary for the sensors.
+        """
         print("Measurement function called.")
         start_time = perf_counter()
         sampling_counter = 0
@@ -48,16 +76,21 @@ class MeasurementControl:
                 sampling_counter += 1
                 data = sensors.collect_data()
                 
-                if sensors.is_show_real_time_data:
-                    all_sensor_data_columns = []
-                    for key in sensors.config.sensors.keys():
-                        all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                        formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+                # if sensors.is_show_real_time_data:
+                #     """
+                #     This portion is for debug.
+                #     Time complexity is big so leads to deteriorate real time performance.
+                #     """
+                #     all_sensor_data_columns = []
+                #     for key in sensors.config.sensors.keys():
+                #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
+                #         formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
 
-                    print("--------------------------------------------------------------------")
-                    print("Current Time is: {:.3f}".format(current_time))
-                    print(formatted_data)
+                #     print("--------------------------------------------------------------------")
+                #     print("Current Time is: {:.3f}".format(current_time))
+                #     print(formatted_data)
                 
+                print("Current Time is: {:.3f}".format(current_time))
                 converted_data = sensors.convert_dictdata(current_time, data)
                 await sensors.update_data_buffer(converted_data)
                 
@@ -69,15 +102,27 @@ class MeasurementControl:
             print(e)
     
     def run_async(self, coroutine):
+        """
+        Runs an asynchronous coroutine in the event loop.
+
+        Args:
+            coroutine (asyncio.Future): The coroutine to run.
+
+        If the event loop is already running, the coroutine is scheduled to run in the existing loop.
+        Otherwise, a new event loop is created, and the coroutine is run until complete.
+        """
         if self.loop.is_running():
             asyncio.run_coroutine_threadsafe(coroutine, self.loop)
         else:
             asyncio.set_event_loop(self.loop)
             self.loop.run_until_complete(coroutine)
     
-    
     def cleanup(self):
-        """クリーンアップ処理を定義します。"""
+        """
+        Performs cleanup tasks.
+
+        Stops the measurement process if it is running and prints a cleanup completion message.
+        """
         if self.is_running:
             self.stop_measurement()
         print("Cleanup completed.")

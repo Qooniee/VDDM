@@ -234,17 +234,21 @@ async def sensor_fusion_main():
             sampling_counter += 1
             data = sensors.collect_data() # 複数のセンサからデータの取得            
             
-            if sensors.is_show_real_time_data:
-                all_sensor_data_columns = []
-                for key in sensors.config.sensors.keys():
-                    all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
-                # 現在時間    
-                print("--------------------------------------------------------------------")
-                print("Current Time is: {:.3f}".format(current_time))
-                print(formatted_data)
+            # if sensors.is_show_real_time_data:
+            #     """
+            #     This portion is for debug.
+            #     Time complexity is big so leads to deteriorate real time performance.
+            #     """
+            #     all_sensor_data_columns = []
+            #     for key in sensors.config.sensors.keys():
+            #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
+            #     formatted_data = asyncio.create_task(format_sensor_fusion_data(data, all_sensor_data_columns))
+            #     # 現在時間    
+            #     print("--------------------------------------------------------------------")
+            #     print("Current Time is: {:.3f}".format(current_time))
+            #     print(formatted_data)
                 
-                
+            print("Current Time is: {:.3f}".format(current_time))
             converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
             # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
             # さらにバッファが一定量に達したらcsvファイルに保存する

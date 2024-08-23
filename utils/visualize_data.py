@@ -4,15 +4,23 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def wait_process(wait_sec):
-    until = perf_counter() + wait_sec
-    while perf_counter() < until:
-        pass
-    return
-
-
-
 def disp_historicalgraph(df, mode="gyro"):
+    """
+    Displays a historical graph for the specified sensor data.
+
+    This function creates a series of subplots to visualize the time series data for different
+    sensor measurements. Depending on the mode specified, it will plot the data for gyro,
+    Euler angles, linear acceleration, or quaternion angles.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the sensor data. It must include 
+                               'Time' and the corresponding sensor columns depending on the mode.
+        mode (str, optional): The type of data to plot. Can be "gyro", "euler", 
+                              "linear_accel", or "quat_angle". Defaults to "gyro".
+
+    Returns:
+        None: The function modifies the current figure and axes directly.
+    """
 
     fig, ax = plt.subplots(1, 3, figsize=(8,3), tight_layout=True)
     if mode == "gyro":
@@ -66,8 +74,19 @@ def disp_historicalgraph(df, mode="gyro"):
 
 
 import math
+import asyncio
 
-def format_sensor_fusion_data(data, labels):
+async def format_sensor_fusion_data(data, labels):
+    """
+    Formats sensor fusion data into a readable string asynchronously.
+
+    Args:
+        data (dict or list): The sensor data, either as a dictionary or a list.
+        labels (list): A list of labels that correspond to the data keys.
+
+    Returns:
+        str: A formatted string that displays each label and its corresponding value.
+    """
     formatted_str = ""
     if isinstance(data, dict):
         for label in labels:
@@ -78,7 +97,6 @@ def format_sensor_fusion_data(data, labels):
                     if value != "None":
                         break
             
-            # None または NaN、数値の場合に応じてフォーマット
             if value is None:
                 formatted_str += f"{label}: None / "
             elif isinstance(value, float) and math.isnan(value):
