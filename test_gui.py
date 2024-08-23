@@ -6,10 +6,12 @@ from config.config_manager import load_config
 from utils.tools import perf_counter, wait_process
 from utils.visualize_data import format_sensor_fusion_data
 import os
+import asyncio
 
 # グローバル変数
 is_running = False
 sensors = None
+loop = asyncio.new_event_loop()  # メインスレッド以外で使用するための新しいイベントループ
 
 config_path = "config/measurement_system_config.yaml"
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -25,18 +27,18 @@ class RedirectText:
     def flush(self):
         pass  # 何もする必要はありません
 
-def start_measurement_thread():
+async def start_measurement():
     global is_running
     global sensors
     
     if not is_running:
         is_running = True
         print("Measurement started.")
-        measurement(sensors, load_config(config_path))
+        await measurement(sensors, load_config(config_path))
     else:
         print("Measurement is already running.")
 
-def stop_measurement_thread():
+def stop_measurement():
     global is_running
     global sensors
 
@@ -46,7 +48,19 @@ def stop_measurement_thread():
     else:
         print("Measurement is not running.")
 
-def measurement(sensors, config):
+async def save_measurement_data():
+    print("pressed save button")
+    await sensors.finish_measurement_and_save_data()
+
+# GUIから呼び出すための非同期関数実行ヘルパー
+def run_async(coroutine):
+    if loop.is_running():
+        asyncio.run_coroutine_threadsafe(coroutine, loop)
+    else:
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(coroutine)
+
+async def measurement(sensors, config):
     print("Measurement function called.")
     start_time = perf_counter()
     sampling_counter = 0
@@ -67,7 +81,12 @@ def measurement(sensors, config):
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
-                
+            
+            converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
+            # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
+            # さらにバッファが一定量に達したらcsvファイルに保存する
+            await sensors.update_data_buffer(converted_data)
+            
             # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
             elapsed_time = perf_counter() - iteration_start_time
             sleep_time = sensors.SAMPLING_TIME - elapsed_time
@@ -108,11 +127,14 @@ def setup_gui():
     button_frame = tk.Frame(root, bg='black')
     button_frame.pack(pady=10)
 
-    start_button = tk.Button(button_frame, text="Start Measurement", command=lambda: Thread(target=start_measurement_thread).start(), bg='green', fg='white', font=('Arial', 14))
+    start_button = tk.Button(button_frame, text="Start Measurement", command=lambda: Thread(target=lambda: run_async(start_measurement())).start(), bg='green', fg='white', font=('Arial', 14))
     start_button.pack(side=tk.LEFT, padx=10)
 
-    stop_button = tk.Button(button_frame, text="Stop Measurement", command=stop_measurement_thread, bg='red', fg='white', font=('Arial', 14))
+    stop_button = tk.Button(button_frame, text="Stop Measurement", command=stop_measurement, bg='red', fg='white', font=('Arial', 14))
     stop_button.pack(side=tk.LEFT, padx=10)
+    
+    save_button = tk.Button(button_frame, text="Save", command=lambda: Thread(target=lambda: run_async(save_measurement_data())).start(), bg='blue', fg='white', font=('Arial', 14))
+    save_button.pack(side=tk.LEFT, padx=10)
 
     root.mainloop()
 

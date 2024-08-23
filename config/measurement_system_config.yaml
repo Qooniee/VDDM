@@ -30,8 +30,8 @@ sensors:
       - "calibstat_accel"
       - "calibstat_mag"
     filter_params:
-      fpass: 3
-      fstop: 5
+      fpass: 8
+      fstop: 10
       gpass: 3
       gstop: 8
       is_filter: True

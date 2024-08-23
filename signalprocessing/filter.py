@@ -11,7 +11,7 @@ def butterlowpass(x, fpass, fstop, gpass, gstop, fs, dt, checkflag, labelname='S
     N, Wn = signal.buttord(Wp, Ws, gpass, gstop)
     b1, a1 = signal.butter(N, Wn, "low")
     y = signal.filtfilt(b1, a1, x)
-    print(y)
+    # print(y)
 
     if checkflag == True:
         time = np.arange(x.__len__()) * dt
