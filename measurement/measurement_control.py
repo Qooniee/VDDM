@@ -95,7 +95,7 @@ class MeasurementControl:
                     print("Current Time is: {:.3f}".format(current_time))
                     print(formatted_data)
                 
-                print("Current Time is: {:.3f}".format(current_time))
+                #print("Current Time is: {:.3f}".format(current_time))
                 #test_s = time.perf_counter()
                 converted_data = sensors.convert_dictdata(current_time, data)
                 await sensors.update_data_buffer(converted_data)
@@ -134,37 +134,3 @@ class MeasurementControl:
         if self.is_running:
             self.stop_measurement()
         print("Cleanup completed.")
-        
-        
-import asyncio
-from measurement_control import MeasurementControl  # MeasurementControlクラスを含むスクリプトをインポート
-
-# テスト用のメイン関数
-async def main():
-    config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
-
-    # MeasurementControlクラスのインスタンスを作成
-    control = MeasurementControl(config_path)
-
-    try:
-        # 計測の開始
-        await control.start_measurement()
-        print()
-
-        # 5秒間の計測
-        time.sleep(5)
-
-        # 計測の停止
-        await control.stop_measurement()
-
-        # 計測データの保存
-        await control.save_measurement_data()
-
-    except Exception as e:
-        print(f"Error during measurement test: {e}")
-    finally:
-        # クリーンアップ処理を実行
-        control.cleanup()
-
-if __name__ == "__main__":
-    asyncio.run(main())
