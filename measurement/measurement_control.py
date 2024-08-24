@@ -10,6 +10,7 @@ from fusion.sensor_fusion import Sensors
 from utils.tools import perf_counter, wait_process
 from utils.visualize_data import format_sensor_fusion_data
 from config.config_manager import load_config
+import time
 
 class MeasurementControl:
     def __init__(self, config_path):
@@ -74,25 +75,32 @@ class MeasurementControl:
                 iteration_start_time = perf_counter()
                 current_time = perf_counter() - start_time
                 sampling_counter += 1
-                data = sensors.collect_data()
                 
-                # if sensors.is_show_real_time_data:
-                #     """
-                #     This portion is for debug.
-                #     Time complexity is big so leads to deteriorate real time performance.
-                #     """
-                #     all_sensor_data_columns = []
-                #     for key in sensors.config.sensors.keys():
-                #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                #         formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+                #test_s = time.perf_counter()
+                data = sensors.collect_data()
+                #test_perf_result = time.perf_counter() - test_s
+                #print("test perf result is: {0} sec".format(test_perf_result))
+                
+                if sensors.is_show_real_time_data:
+                    """
+                    This portion is for debug.
+                    Time complexity is big so leads to deteriorate real time performance.
+                    """
+                    all_sensor_data_columns = []
+                    for key in sensors.config.sensors.keys():
+                        all_sensor_data_columns += sensors.config.sensors[key].data_columns
+                        formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
 
-                #     print("--------------------------------------------------------------------")
-                #     print("Current Time is: {:.3f}".format(current_time))
-                #     print(formatted_data)
+                    print("--------------------------------------------------------------------")
+                    print("Current Time is: {:.3f}".format(current_time))
+                    print(formatted_data)
                 
                 print("Current Time is: {:.3f}".format(current_time))
+                #test_s = time.perf_counter()
                 converted_data = sensors.convert_dictdata(current_time, data)
                 await sensors.update_data_buffer(converted_data)
+                #test_perf_result = time.perf_counter() - test_s
+                #print("test perf result is: {0} sec".format(test_perf_result))
                 
                 elapsed_time = perf_counter() - iteration_start_time
                 sleep_time = sensors.SAMPLING_TIME - elapsed_time
@@ -126,3 +134,37 @@ class MeasurementControl:
         if self.is_running:
             self.stop_measurement()
         print("Cleanup completed.")
+        
+        
+import asyncio
+from measurement_control import MeasurementControl  # MeasurementControlクラスを含むスクリプトをインポート
+
+# テスト用のメイン関数
+async def main():
+    config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
+
+    # MeasurementControlクラスのインスタンスを作成
+    control = MeasurementControl(config_path)
+
+    try:
+        # 計測の開始
+        await control.start_measurement()
+        print()
+
+        # 5秒間の計測
+        time.sleep(5)
+
+        # 計測の停止
+        await control.stop_measurement()
+
+        # 計測データの保存
+        await control.save_measurement_data()
+
+    except Exception as e:
+        print(f"Error during measurement test: {e}")
+    finally:
+        # クリーンアップ処理を実行
+        control.cleanup()
+
+if __name__ == "__main__":
+    asyncio.run(main())

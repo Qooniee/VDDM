@@ -2,7 +2,7 @@ from time import perf_counter
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import math
 
 def disp_historicalgraph(df, mode="gyro"):
     """
@@ -21,8 +21,7 @@ def disp_historicalgraph(df, mode="gyro"):
     Returns:
         None: The function modifies the current figure and axes directly.
     """
-
-    fig, ax = plt.subplots(1, 3, figsize=(8,3), tight_layout=True)
+    fig, ax = plt.subplots(1, 3, figsize=(8, 3), tight_layout=True)
     if mode == "gyro":
         ax[0].plot(df['Time'], df['gyro_x'], marker='*')
         ax[1].plot(df['Time'], df['gyro_y'], marker='*')
@@ -43,7 +42,7 @@ def disp_historicalgraph(df, mode="gyro"):
         ax[1].set_xlabel('Time[s]')
         ax[1].set_ylabel('Pitch Angle[deg]')
         ax[2].set_xlabel('Time[s]')
-        ax[2].set_ylabel('Yaw Angle[deg]') 
+        ax[2].set_ylabel('Yaw Angle[deg]')
 
     if mode == "linear_accel":
         ax[0].plot(df['Time'], df['linear_accel_x'], marker='*')
@@ -55,7 +54,7 @@ def disp_historicalgraph(df, mode="gyro"):
         ax[1].set_ylabel('linear_accel_y[m/s^2]')
         ax[2].set_xlabel('Time[s]')
         ax[2].set_ylabel('linear_accel_z[m/s^2]')
-    
+
     if mode == "quat_angle":
         ax[0].plot(df['Time'], df['quat_roll'], marker='*')
         ax[1].plot(df['Time'], df['quat_pitch'], marker='*')
@@ -66,23 +65,24 @@ def disp_historicalgraph(df, mode="gyro"):
         ax[1].set_ylabel('quat_pitch[deg]')
         ax[2].set_xlabel('Time[s]')
         ax[2].set_ylabel('quat_yaw[deg]')
-                    
-    #plt.show()
-    #fig = plt.gcf()
+
     return
 
 
-
-import math
-import asyncio
-
-async def format_sensor_fusion_data(data, labels):
+def format_sensor_fusion_data(data, labels):
     """
-    Formats sensor fusion data into a readable string asynchronously.
+    Formats sensor fusion data into a readable string.
+
+    This function takes in a dictionary of sensor data and a list of labels,
+    then formats each label's corresponding value into a string with 4 decimal
+    places. If a value is None or NaN, it is appropriately labeled in the output.
 
     Args:
-        data (dict or list): The sensor data, either as a dictionary or a list.
-        labels (list): A list of labels that correspond to the data keys.
+        data (dict or list): The sensor data, either as a dictionary or a list. 
+                             If it's a dictionary, the values should be either 
+                             floats or nested dictionaries.
+        labels (list): A list of labels that correspond to the data keys. These 
+                       labels will be used in the formatted output.
 
     Returns:
         str: A formatted string that displays each label and its corresponding value.
@@ -96,7 +96,7 @@ async def format_sensor_fusion_data(data, labels):
                     value = sensor_data.get(label, "None")
                     if value != "None":
                         break
-            
+
             if value is None:
                 formatted_str += f"{label}: None / "
             elif isinstance(value, float) and math.isnan(value):
@@ -121,5 +121,5 @@ async def format_sensor_fusion_data(data, labels):
                     formatted_str += f"{label}: {value} / "
                 else:
                     formatted_str += f"{label}: {formatted_value} / "
-    
+
     return formatted_str.rstrip(" / ")
