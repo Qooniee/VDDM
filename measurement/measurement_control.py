@@ -81,19 +81,19 @@ class MeasurementControl:
                 #test_perf_result = time.perf_counter() - test_s
                 #print("test perf result is: {0} sec".format(test_perf_result))
                 
-                if sensors.is_show_real_time_data:
-                    """
-                    This portion is for debug.
-                    Time complexity is big so leads to deteriorate real time performance.
-                    """
-                    all_sensor_data_columns = []
-                    for key in sensors.config.sensors.keys():
-                        all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                        formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+                # if sensors.is_show_real_time_data:
+                #     """
+                #     This portion is for debug.
+                #     Time complexity is big so leads to deteriorate real time performance.
+                #     """
+                #     all_sensor_data_columns = []
+                #     for key in sensors.config.sensors.keys():
+                #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
+                #         formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
 
-                    print("--------------------------------------------------------------------")
-                    print("Current Time is: {:.3f}".format(current_time))
-                    print(formatted_data)
+                #     print("--------------------------------------------------------------------")
+                #     print("Current Time is: {:.3f}".format(current_time))
+                #     print(formatted_data)
                 
                 #print("Current Time is: {:.3f}".format(current_time))
                 #test_s = time.perf_counter()
