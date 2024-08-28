@@ -235,11 +235,12 @@ async def sensor_fusion_main():
             iteration_start_time = perf_counter() #各イテレーションの開始時間
             current_time = perf_counter() - main_loop_start_time # main loopの実行からの経過時間(Current time)
             sampling_counter += 1 # サンプリングの回数
-            data = sensors.collect_data() # 複数のセンサからデータの取得
+            data = sensors.collect_data() # 複数のセンサからデータの取得                                        
+            # print("Current Time is: {:.3f}".format(current_time))
             converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
             # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
             # さらにバッファが一定量に達したらcsvファイルに保存する
-            await sensors.update_data_buffer(converted_data)          
+            await sensors.update_data_buffer(converted_data)
             if sensors.is_show_real_time_data:
                 """
                 This portion is for debug.
@@ -254,9 +255,6 @@ async def sensor_fusion_main():
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
-
-                
-
                 
             # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
             iteration_end_time = perf_counter() # イテレーションの終了時間
@@ -296,9 +294,6 @@ async def sensor_fusion_main():
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
 
-
-    
-    print()
 
 if __name__ == '__main__':
     asyncio.run(sensor_fusion_main())
