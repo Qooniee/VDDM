@@ -13,6 +13,8 @@ from config.config_manager import load_config
 import time
 import threading
 
+import pandas as pd
+
 class MeasurementControl:
     def __init__(self, config_path):
         """
@@ -80,6 +82,12 @@ class MeasurementControl:
         print("Measurement function called.")
         main_loop_start_time = perf_counter()
         sampling_counter = 0
+        self.sensors.data_buffer = pd.DataFrame()
+        if os.path.exists(sensors.SAVE_BUF_CSVDATA_PATH):
+            os.remove(sensors.SAVE_BUF_CSVDATA_PATH)
+            print(f"File  '{self.sensors.SAVE_BUF_CSVDATA_PATH}' was deleted")
+        else:
+            print(f"File '{self.sensors.SAVE_BUF_CSVDATA_PATH}' is not existed")
         try:
             while self.is_running:
                 iteration_start_time = perf_counter() #各イテレーションの開始時間
