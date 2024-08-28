@@ -7,6 +7,7 @@ import pandas as pd
 import datetime
 import asyncio
 import numpy as np
+import threading
 
 
 
@@ -63,6 +64,7 @@ class Sensors:
 
         
         self.data_buffer = pd.DataFrame()  # データを保持するための空のDataFrame
+        self.lock = threading.Lock()
     
         for sensor_type in self.sensor_list:
             sensor_config = self.config.sensors[sensor_type]
@@ -148,25 +150,21 @@ class Sensors:
 
 
 
-    async def update_data_buffer(self, dict_data):
-        """センサーからのデータをバッファに追加し、必要に応じて保存する
-        
-        Args:
-            sensor_data_dict (dict): センサーからのデータ
-        """
-        
-        # バッファに追加
-        self.data_buffer = pd.concat([self.data_buffer, dict_data], ignore_index=True)
+    def update_data_buffer(self, dict_data):
+        """センサーからのデータをバッファに追加し、必要に応じて保存する"""
+        with self.lock:  # データバッファ操作をスレッドセーフにする
+            # バッファに追加
+            self.data_buffer = pd.concat([self.data_buffer, dict_data], ignore_index=True)
 
-        # バッファが指定した長さを超えている場合、古いデータを保存
-        if len(self.data_buffer) > self.MAX_DATA_BUF_LEN:
-            # 古いデータをCSVに保存
-            old_data = self.data_buffer.head(self.MAX_DATA_BUF_LEN)
-            
-            await self.save_data(old_data, self.SAVE_BUF_CSVDATA_PATH)
-            
-            # バッファを更新
-            self.data_buffer = self.data_buffer.tail(len(self.data_buffer) - self.MAX_DATA_BUF_LEN)
+            # バッファが指定した長さを超えている場合、古いデータを保存
+            if len(self.data_buffer) > self.MAX_DATA_BUF_LEN:
+                # 古いデータをCSVに保存
+                old_data = self.data_buffer.head(self.MAX_DATA_BUF_LEN)
+                threading.Thread(target=self.save_data, args=(old_data, self.SAVE_BUF_CSVDATA_PATH)).start()
+                
+                # バッファを更新
+                self.data_buffer = self.data_buffer.tail(len(self.data_buffer) - self.MAX_DATA_BUF_LEN)
+
         
     
     
@@ -211,94 +209,65 @@ class Sensors:
 
 
 
-
-
-        
-async def sensor_fusion_main():
+def measurement():
     print("Start sensor fusion main")
+    print("Measurement initialization...")
     config = config_manager.load_config(config_path)
     sensors = Sensors(config["master"])
     print("Called an instance of Sensors class")
     
-    # sensors.start_all_measurements()
-    sampling_counter = 0
-    current_time = 0
-    #sensors.is_running = True
     sensors.on_change_start_measurement()
-    """
-    計測メインループ
-    実行時間：最大0.04sほど(is_show_real_time_data==True)
-    """
+    sampling_counter = 0
+    
     try:
-        main_loop_start_time = perf_counter()# main loopの開始時間
+        main_loop_start_time = perf_counter()  # main loopの開始時間
         while sensors.is_running:
-            iteration_start_time = perf_counter() #各イテレーションの開始時間
-            current_time = perf_counter() - main_loop_start_time # main loopの実行からの経過時間(Current time)
-            sampling_counter += 1 # サンプリングの回数
-            data = sensors.collect_data() # 複数のセンサからデータの取得
-            converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
-            # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
-            # さらにバッファが一定量に達したらcsvファイルに保存する
-            await sensors.update_data_buffer(converted_data)          
-            if sensors.is_show_real_time_data:
-                """
-                This portion is for debug.
-                Time complexity is big so leads to deteriorate real time performance.
-                execution time: 0.0009526989997539204[s], 0.002001360000576824, 0.0024356100002478343, 0.0020515090000117198
-                """
-                all_sensor_data_columns = []
-                for key in sensors.config.sensors.keys():
-                    all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
-                # 現在時間    
-                print("--------------------------------------------------------------------")
-                print("Current Time is: {:.3f}".format(current_time))
-                print(formatted_data)
+            iteration_start_time = perf_counter()  # 各イテレーションの開始時間
+            current_time = perf_counter() - main_loop_start_time  # main loopの実行からの経過時間
+            sampling_counter += 1  # サンプリングの回数
+            data = sensors.collect_data()  # 複数のセンサからデータの取得     
+            converted_data = sensors.convert_dictdata(current_time, data)  # 複数のセンサから取得したデータをdataframeに変換
+            sensors.update_data_buffer(converted_data) # バッファの更新
+               
+            # if sensors.is_show_real_time_data:
+            #     all_sensor_data_columns = []
+            #     for key in sensors.config.sensors.keys():
+            #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
+            #     formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+            #     print("--------------------------------------------------------------------")
+            #     print("Current Time is: {:.3f}".format(current_time))
+            #     print(formatted_data)
 
-                
-
-                
-            # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
-            iteration_end_time = perf_counter() # イテレーションの終了時間
-            iteration_duration = iteration_end_time - iteration_start_time # 1イテレーションで経過した時間
+            
+            iteration_end_time = perf_counter()  # イテレーションの終了時間
+            iteration_duration = iteration_end_time - iteration_start_time  # 1イテレーションで経過した時間
             print("Iteration duration is: {0} [s]".format(iteration_duration))
-            sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration) # サンプリング周波数(())
+            sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration)  # サンプリング周波数
             if sleep_time > 0:
                 wait_process(sleep_time)
-    
     except Exception as e:
         print(e)
     
     except KeyboardInterrupt:
-        sensors.on_change_stop_measurement()
         print("KeyboardInterrupt")
-        await sensors.finish_measurement_and_save_data()
-        
-    finally:
-        print("finish")
-         # サンプリングの個数と現在時間からサンプリングの遅れを計算
-        main_loop_end_time = perf_counter() - main_loop_start_time
-        print("Program terminated")
-        print("main loop is ended. current time is: {:.3f}".format(current_time))
-        print("main loop is ended. end time is: {:.3f}".format(main_loop_end_time))
-        print("sampling num is: {}".format(sampling_counter))# 0基準であるためcurrent_time + 1個のサンプルになる
-        
-        
-        
-        # 理想的なサンプリング時間の計算
-        ideal_time = ((sampling_counter - 1) / sensors.SAMPLING_FREQUENCY_HZ)
-        # 遅れの計算
-        delay_time = current_time - ideal_time
-        # 遅れの割合をサンプリング時間で割った値を信頼性率とする
-        sampling_reliability_rate = (delay_time / (sampling_counter / sensors.SAMPLING_FREQUENCY_HZ)) * 100
-        
-        
-        print("sampling delay is: {:.3f} s".format(delay_time))
-        print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
-
-
     
-    print()
+
+
+
+def main_loop():
+    main_thread_name = threading.current_thread().name
+    print("The name if the main thread is: {0}".format(main_thread_name))
+    measurement_thread = threading.Thread(target=measurement, name="MeasurementThread")
+    
+    measurement_thread.start()
+    
+    measurement_thread.join()
+    
+
+
+
+
 
 if __name__ == '__main__':
-    asyncio.run(sensor_fusion_main())
+    is_prog_running = False
+    main_loop()
