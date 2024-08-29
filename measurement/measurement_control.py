@@ -29,10 +29,7 @@ class MeasurementControl:
         self.config_path = config_path
 
     def show_real_time_data(self, sensors, data, current_time):
-        all_sensor_data_columns = []
-        for key in sensors.config.sensors.keys():
-            all_sensor_data_columns += sensors.config.sensors[key].data_columns
-        formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+        formatted_data = format_sensor_fusion_data(data, sensors.all_data_columns_list)
         print("--------------------------------------------------------------------")
         print("Current Time is: {:.3f}".format(current_time))
         print(formatted_data)
@@ -99,20 +96,6 @@ class MeasurementControl:
                 # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
                 # さらにバッファが一定量に達したらcsvファイルに保存する
                 await sensors.update_data_buffer(converted_data)
-                
-                # if sensors.is_show_real_time_data:
-                #     """
-                #     This portion is for debug.
-                #     Time complexity is big so leads to deteriorate real time performance.
-                #     """
-                #     all_sensor_data_columns = []
-                #     for key in sensors.config.sensors.keys():
-                #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                #         formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
-
-                #     print("--------------------------------------------------------------------")
-                #     print("Current Time is: {:.3f}".format(current_time))
-                #     print(formatted_data)
                 # リアルタイムデータの表示を別スレッドで実行
                 if sensors.is_show_real_time_data:
                     show_real_time_data_thread = threading.Thread(target=self.show_real_time_data, 

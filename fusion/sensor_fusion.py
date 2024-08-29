@@ -40,7 +40,7 @@ class SensorFactory:
 class Sensors:
     def __init__(self, config):
         self.config = config_manager.load_config(config_path)
-        self.sensor_list = list(self.config.sensors.keys())
+        self.sensor_list = tuple(self.config.sensors.keys())
         self.sensor_instances = {}
         self.is_running = False
         
@@ -59,6 +59,10 @@ class Sensors:
         self.is_filter = config.filter_params.is_filter
         self.is_show_real_time_data = config.is_show_real_time_data
         self.TIMEZONE = config.timezone
+        self.all_data_columns_list = ()
+        for sensor_name in self.sensor_list:
+            self.all_data_columns_list += tuple(self.config["sensors"][sensor_name]["data_columns"])            
+            
         
 
         
@@ -242,20 +246,12 @@ async def sensor_fusion_main():
             # さらにバッファが一定量に達したらcsvファイルに保存する
             await sensors.update_data_buffer(converted_data)
             if sensors.is_show_real_time_data:
-                """
-                This portion is for debug.
-                Time complexity is big so leads to deteriorate real time performance.
-                execution time: 0.0009526989997539204[s], 0.002001360000576824, 0.0024356100002478343, 0.0020515090000117198
-                """
-                all_sensor_data_columns = []
-                for key in sensors.config.sensors.keys():
-                    all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
-                # 現在時間    
+                formatted_data = format_sensor_fusion_data(data, sensors.all_data_columns_list)
+                # 現在時間  
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
-                
+             
             # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
             iteration_end_time = perf_counter() # イテレーションの終了時間
             iteration_duration = iteration_end_time - iteration_start_time # 1イテレーションで経過した時間
