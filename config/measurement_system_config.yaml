@@ -1,7 +1,7 @@
 # Sensor Configuration
 sensors:
   bno055:
-    sampling_frequency_hz: 10
+    sampling_frequency_hz: 20
     sequence_length: 1000
     save_interval: 10
     data_columns:
@@ -41,7 +41,7 @@ sensors:
     is_offline: True
 
   elm327:
-    sampling_frequency_hz: 10
+    sampling_frequency_hz: 20
     sequence_length: 1000
     save_interval: 10
     data_columns:
@@ -61,7 +61,7 @@ sensors:
 
 
 master:
-  sampling_frequency_hz: 10
+  sampling_frequency_hz: 20
   sequence_length: 1000
   save_interval: 10
   filter_params:

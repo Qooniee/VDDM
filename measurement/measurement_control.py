@@ -77,7 +77,7 @@ class MeasurementControl:
             config (dict): Configuration dictionary for the sensors.
         """
         print("Measurement function called.")
-        main_loop_start_time = perf_counter()
+        main_loop_start_time = None
         sampling_counter = 0
         self.sensors.data_buffer = pd.DataFrame()
         if os.path.exists(sensors.SAVE_BUF_CSVDATA_PATH):
@@ -88,9 +88,13 @@ class MeasurementControl:
         try:
             while self.is_running:
                 iteration_start_time = perf_counter() #各イテレーションの開始時間
+                
+                if main_loop_start_time is None:
+                    main_loop_start_time = iteration_start_time  # 最初のイテレーションで開始時間を設定
+                    
                 current_time = perf_counter() - main_loop_start_time # main loopの実行からの経過時間(Current time)
-                sampling_counter += 1 # サンプリングの回数
-                data = sensors.collect_data() # 複数のセンサからデータの取得                                        
+                data = sensors.collect_data() # 複数のセンサからデータの取得
+                sampling_counter += 1 # サンプリングの回数                                       
                 # print("Current Time is: {:.3f}".format(current_time))
                 converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
                 # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
