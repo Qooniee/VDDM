@@ -1,7 +1,7 @@
 # Sensor Configuration
 sensors:
   bno055:
-    sampling_frequency_hz: 20
+    sampling_frequency_hz: 4
     sequence_length: 1000
     save_interval: 10
     data_columns:
@@ -30,18 +30,18 @@ sensors:
       - "calibstat_accel"
       - "calibstat_mag"
     filter_params:
-      fpass: 8
+      fpass: 15
       fstop: 10
       gpass: 3
-      gstop: 8
-      is_filter: True
+      gstop: 5
+      is_filter: False
     perform_calibration: False
     save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: True
+    is_offline: False
 
   elm327:
-    sampling_frequency_hz: 20
+    sampling_frequency_hz: 4
     sequence_length: 1000
     save_interval: 10
     data_columns:
@@ -54,23 +54,23 @@ sensors:
       fstop: 5
       gpass: 3
       gstop: 8
-      is_filter: True
+      is_filter: False
     save_data_dir: /home/rasut/workspaces/VDDM/data
     is_show_real_time_data: True
-    is_offline: True
+    is_offline: False
 
 
 master:
-  sampling_frequency_hz: 20
+  sampling_frequency_hz: 4
   sequence_length: 1000
   save_interval: 10
   filter_params:
-      fpass: 3
-      fstop: 5
+      fpass: 15
+      fstop: 10
       gpass: 3
-      gstop: 8
-      is_filter: True
+      gstop: 5
+      is_filter: False
   save_data_dir: /home/rasut/workspaces/VDDM/data
   is_show_real_time_data: True
-  is_offline: True
+  is_offline: False
   timezone: "JST"
