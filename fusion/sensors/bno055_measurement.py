@@ -19,7 +19,6 @@ class BNO055:
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
         self.SAVE_DATA_DIR = config.save_data_dir
         self.SEQUENCE_LENGTH = config.sequence_length
-        self.SAVE_INTERVAL = config.save_interval
         self.FPASS = config.filter_params.fpass
         self.FSTOP = config.filter_params.fstop
         self.GPASS = config.filter_params.gpass

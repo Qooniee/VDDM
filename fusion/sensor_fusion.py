@@ -19,7 +19,6 @@ from utils.visualize_data import format_sensor_fusion_data
 from signalprocessing.filter import butterlowpass
 
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
-#SAVE_INTERVAL = 10  # Save interval in seconds
 
 
 class SensorFactory:
@@ -49,9 +48,10 @@ class Sensors:
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
         self.SAVE_DATA_DIR = config.save_data_dir
         self.SAVE_BUF_CSVDATA_PATH = self.SAVE_DATA_DIR + "/" + "measurement_raw_data.csv"
-        self.SEQUENCE_LENGTH = config.sequence_length
-        self.MAX_DATA_BUF_LEN = self.SEQUENCE_LENGTH // self.SAMPLING_FREQUENCY_HZ
-        self.SAVE_INTERVAL = config.save_interval
+        self.SEQUENCE_LENGTH = config.sequence_length # Windows size [s]
+        # Buffer size is determined by the relation of sequence length and sampling frequency
+        # Buffer secures data for SEQUENCE_LENGTH[s]
+        self.MAX_DATA_BUF_LEN = self.SEQUENCE_LENGTH * self.SAMPLING_FREQUENCY_HZ
         self.FPASS = config.filter_params.fpass
         self.FSTOP = config.filter_params.fstop
         self.GPASS = config.filter_params.gpass
