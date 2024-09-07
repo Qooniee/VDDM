@@ -21,6 +21,12 @@ config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml
 
 class ELM327:
     def __init__(self, config):
+        """
+        Initialize the ELM327 class with configuration parameters.
+
+        Args:
+            config (dict): Configuration parameters for the ELM327.
+        """
         self.COLUMNS = config.data_columns    
         self.SAMPLING_FREQUENCY_HZ = config.sampling_frequency_hz
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
@@ -39,12 +45,21 @@ class ELM327:
         self.Is_show_real_time_data = config.is_show_real_time_data
 
     def initialize_BLE(self):
+        """
+        Initialize Bluetooth Low Energy (BLE) for ELM327 connection.
+        """
         os.system('sudo hcitool scan')
         os.system('sudo hciconfig hci0 up')
         os.system('sudo rfcomm bind 0 8A:2A:D4:FF:38:F3')
         os.system('sudo rfcomm listen 0 1 &')
 
     def connect_to_elm327(self):
+        """
+        Establish a connection to the ELM327 device.
+
+        Returns:
+            res (obd.OBDStatus): The connection status of the ELM327 device.
+        """
         res = None
         try:
             self.initialize_BLE()
@@ -64,26 +79,35 @@ class ELM327:
             return res
 
     def get_data_from_sensor(self):
-        """_summary_
+        """
+        Retrieve data from the sensor.
 
         Returns:
-            _type_: 辞書型データ
+            dict: A dictionary containing sensor data.
         """
         if self.is_offline:
             data = self.get_data_from_sensor_stub()
         else:
-        # データを取得し、辞書形式で保存
+            # Retrieve data and save it in dictionary format
             data = {column: self.get_obd2_value(column) for column in self.COLUMNS}
         return data
 
     def get_obd2_value_debug(self, column):
-        # OBDコマンドを取得し、結果を処理する
+        """
+        Retrieve OBD-II value for a specific column with debug information.
+
+        Args:
+            column (str): The OBD-II command column.
+
+        Returns:
+            float or None: The value of the OBD-II command, or None if not available.
+        """
         command = getattr(obd.commands, column, None)
         if command:
             response = self.connection.query(command)
             if response:
                 print(f"Response for command '{command}': {response}")
-                if response.value is not None:  # Noneチェック
+                if response.value is not None:  # Check for None
                     print(f"Response value for command '{command}': {response.value}")
                     return response.value.magnitude
                 else:
@@ -94,22 +118,32 @@ class ELM327:
             print(f"No command found for column '{column}'")
         return None
 
-
     def get_obd2_value(self, column):
-        # OBDコマンドを取得し、結果を処理する
+        """
+        Retrieve OBD-II value for a specific column.
+
+        Args:
+            column (str): The OBD-II command column.
+
+        Returns:
+            float or None: The value of the OBD-II command, or None if not available.
+        """
         command = getattr(obd.commands, column, None)
         if command:
             response = self.connection.query(command)
-            if response.value is not None:  # Noneチェック
+            if response.value is not None:  # Check for None
                 return response.value.magnitude
         return None
 
-
-
     def get_data_from_sensor_stub(self):
-        # データのスタブを生成
+        """
+        Generate stub data for the sensor.
+
+        Returns:
+            dict: A dictionary containing stub sensor data.
+        """
         data_stub = {column: np.abs(np.random.randn()).astype(np.float32).item() for column in self.COLUMNS}        
-        # ランダムにNoneまたは0.0を挿入する処理を実施
+        # Randomly insert None or 0.0
         if random.choice([True, False]):
             random_column = random.choice(self.COLUMNS)
             if random.choice([True, False]):
@@ -118,7 +152,18 @@ class ELM327:
                 data_stub[random_column] = 0.0
         
         return data_stub
+
 def format_data_for_display(data, labels):
+    """
+    Format sensor data for display.
+
+    Args:
+        data (dict): The sensor data to format.
+        labels (list of str): The list of labels to include in the formatted string.
+
+    Returns:
+        str: A formatted string containing the sensor data.
+    """
     formatted_str = ""
     for label, value in zip(labels, data.values()):
         if value is None:
@@ -128,8 +173,17 @@ def format_data_for_display(data, labels):
         formatted_str += f"{label}: {value} / "
     return formatted_str.rstrip(" / ")
 
-    
 def format_sensor_data(data, labels):
+    """
+    Format sensor data for display.
+
+    Args:
+        data (dict or list): The sensor data to format.
+        labels (list of str): The list of labels to include in the formatted string.
+
+    Returns:
+        str: A formatted string containing the sensor data.
+    """
     formatted_str = ""
     if isinstance(data, dict):
         for label in labels:
@@ -148,10 +202,20 @@ def format_sensor_data(data, labels):
             formatted_str += f"{label}: {value} / "
     return formatted_str.rstrip(" / ")
 
-
-    
-    
 def test_main():
+    """
+    Main function for testing sensor data collection and display.
+
+    This function initializes the ELM327 sensor, starts a loop to collect data,
+    formats the data for display, and prints it in real-time. It also calculates
+    and prints the sampling delay and reliability rate upon termination.
+
+    The main loop runs until interrupted by the user.
+
+    Raises:
+        KeyboardInterrupt: If a keyboard interrupt occurs, the loop is terminated
+                           and the final statistics are printed.
+    """
     from utils.tools import wait_process
     from time import perf_counter
     import matplotlib.pyplot as plt
@@ -159,7 +223,7 @@ def test_main():
     print("Main start")
     config = load_config(config_path)
     meas_elm327 = ELM327(config.sensors['elm327'])
-    #res = meas_elm327.connect_to_elm327()
+    # res = meas_elm327.connect_to_elm327()
     
     start_time = perf_counter()
     sampling_counter = 0
@@ -168,8 +232,7 @@ def test_main():
         while True:
             iteration_start_time = perf_counter()
             
-            # データ取得処理
-
+            # Data acquisition process
             data = meas_elm327.get_data_from_sensor()
             
             current_time = perf_counter() - start_time
@@ -181,7 +244,7 @@ def test_main():
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
             
-            # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
+            # Wait to meet the sampling frequency based on the sampling interval and execution time
             elapsed_time = perf_counter() - iteration_start_time
             sleep_time = meas_elm327.SAMPLING_TIME - elapsed_time
             if sleep_time > 0:
@@ -197,13 +260,12 @@ def test_main():
         print("main loop is ended. end time is: {:.3f}".format(main_loop_end_time))
         print("sampling num is: {}".format(sampling_counter))
         
-         # 理想的なサンプリング時間の計算
+        # Calculate the ideal sampling time
         ideal_time = ((sampling_counter - 1) / meas_elm327.SAMPLING_FREQUENCY_HZ)
-        # 遅れの計算
+        # Calculate the delay
         delay_time = current_time - ideal_time
-        # 遅れの割合をサンプリング時間で割った値を信頼性率とする
+        # The reliability rate is the delay divided by the sampling time
         sampling_reliability_rate = (delay_time / (sampling_counter / meas_elm327.SAMPLING_FREQUENCY_HZ)) * 100
-        
         
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))

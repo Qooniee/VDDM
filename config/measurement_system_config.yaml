@@ -40,24 +40,24 @@ sensors:
     is_show_real_time_data: False
     is_offline: True
 
-  # elm327:
-  #   sampling_frequency_hz: 4
-  #   sequence_length: 1000
-  #   save_interval: 10
-  #   data_columns:
-  #     - "SPEED"
-  #     - "RPM"
-  #     - "THROTTLE_POS"
-  #     - "THROTTLE_POS_B"
-  #   filter_params:
-  #     fpass: 3
-  #     fstop: 5
-  #     gpass: 3
-  #     gstop: 8
-  #     is_filter: False
-  #   save_data_dir: /home/rasut/workspaces/VDDM/data
-  #   is_show_real_time_data: True
-  #   is_offline: True
+  elm327:
+    sampling_frequency_hz: 4
+    sequence_length: 1000
+    save_interval: 10
+    data_columns:
+      - "SPEED"
+      - "RPM"
+      - "THROTTLE_POS"
+      - "THROTTLE_POS_B"
+    filter_params:
+      fpass: 3
+      fstop: 5
+      gpass: 3
+      gstop: 8
+      is_filter: False
+    save_data_dir: /home/rasut/workspaces/VDDM/data
+    is_show_real_time_data: True
+    is_offline: True
 
 
 master:
