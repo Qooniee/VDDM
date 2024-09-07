@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-# Add parent directory to path
+# Add the parent directory to path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -11,6 +11,9 @@ from utils.tools import perf_counter, wait_process
 from utils.visualize_data import format_sensor_fusion_data
 from config.config_manager import load_config
 import time
+import threading
+
+import pandas as pd
 
 class MeasurementControl:
     def __init__(self, config_path):
@@ -24,6 +27,12 @@ class MeasurementControl:
         self.sensors = Sensors(load_config(config_path)["master"])  # Initialize sensors
         self.loop = asyncio.new_event_loop()  # Create a new event loop for non-main thread usage
         self.config_path = config_path
+
+    def show_real_time_data(self, sensors, data, current_time):
+        formatted_data = format_sensor_fusion_data(data, sensors.all_data_columns_list)
+        print("--------------------------------------------------------------------")
+        print("Current Time is: {:.3f}".format(current_time))
+        print(formatted_data)
     
     async def start_measurement(self):
         """
@@ -34,7 +43,7 @@ class MeasurementControl:
         if not self.is_running:
             self.is_running = True
             print("Measurement started.")
-            await self.measurement(self.sensors, load_config(self.config_path))
+            await self.measurement(self.sensors)
         else:
             print("Measurement is already running.")
     
@@ -59,55 +68,57 @@ class MeasurementControl:
         print("Pressed save button")
         await self.sensors.finish_measurement_and_save_data()
 
-    async def measurement(self, sensors, config):
+    async def measurement(self, sensors):
         """
         Handles the measurement process, including data collection, processing, and display.
 
         Args:
             sensors (Sensors): The Sensors instance used for data collection.
-            config (dict): Configuration dictionary for the sensors.
         """
         print("Measurement function called.")
-        start_time = perf_counter()
+        main_loop_start_time = None
         sampling_counter = 0
+        self.sensors.data_buffer = pd.DataFrame()
+        if os.path.exists(sensors.SAVE_BUF_CSVDATA_PATH):
+            os.remove(sensors.SAVE_BUF_CSVDATA_PATH)
+            print(f"File  '{self.sensors.SAVE_BUF_CSVDATA_PATH}' was deleted")
+        else:
+            print(f"File '{self.sensors.SAVE_BUF_CSVDATA_PATH}' is not existed")
         try:
             while self.is_running:
-                iteration_start_time = perf_counter()
-                current_time = perf_counter() - start_time
-                sampling_counter += 1
+                iteration_start_time = perf_counter() # Start time of each iteration
                 
-                #test_s = time.perf_counter()
-                data = sensors.collect_data()
-                #test_perf_result = time.perf_counter() - test_s
-                #print("test perf result is: {0} sec".format(test_perf_result))
-                
-                # if sensors.is_show_real_time_data:
-                #     """
-                #     This portion is for debug.
-                #     Time complexity is big so leads to deteriorate real time performance.
-                #     """
-                #     all_sensor_data_columns = []
-                #     for key in sensors.config.sensors.keys():
-                #         all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                #         formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
+                if main_loop_start_time is None:
+                    main_loop_start_time = iteration_start_time  # Initialize main loop start time
+                    
+                current_time = perf_counter() - main_loop_start_time # Current time
+                data = sensors.collect_data() # Get data from multiple sensors
+                sampling_counter += 1 # Count sampling times                                       
+                converted_data = sensors.convert_dictdata(current_time, data) # Convert data to dataframe format
 
-                #     print("--------------------------------------------------------------------")
-                #     print("Current Time is: {:.3f}".format(current_time))
-                #     print(formatted_data)
-                
-                #print("Current Time is: {:.3f}".format(current_time))
-                #test_s = time.perf_counter()
-                converted_data = sensors.convert_dictdata(current_time, data)
+                # Update the data buffer. If it reaches the buffer limit, write the data to a CSV file.
                 await sensors.update_data_buffer(converted_data)
-                #test_perf_result = time.perf_counter() - test_s
-                #print("test perf result is: {0} sec".format(test_perf_result))
-                
-                elapsed_time = perf_counter() - iteration_start_time
-                sleep_time = sensors.SAMPLING_TIME - elapsed_time
+                # Display data in real time. This process is executed on additional thread.
+                if sensors.is_show_real_time_data:
+                    show_real_time_data_thread = threading.Thread(target=self.show_real_time_data, 
+                                                        args=(sensors, data, current_time), 
+                                                        name="show_real_time_data_thread")
+                    show_real_time_data_thread.start()
+
+                # Wait based on the sampling interval and execution time to maintain the sampling frequency.
+                iteration_end_time = perf_counter() # Iteration end time
+                iteration_duration = iteration_end_time - iteration_start_time # Elapsed time of each iteration
+                sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration) # Sleep time
                 if sleep_time > 0:
                     wait_process(sleep_time)
+            # Wait the finish of the last thread 
+            show_real_time_data_thread.join()
+                
         except Exception as e:
             print(e)
+    
+    
+
     
     def run_async(self, coroutine):
         """

@@ -1,3 +1,3 @@
 from gui import main_gui
-# アプリのエントリーポイント
+# The Application Entry Point
 main_gui.setup_gui()

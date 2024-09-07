@@ -19,18 +19,17 @@ from utils.visualize_data import format_sensor_fusion_data
 from signalprocessing.filter import butterlowpass
 
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
-SAVE_INTERVAL = 10  # Save interval in seconds
 
 
 class SensorFactory:
     @staticmethod
     def create_sensor(sensor_type, config):
         try:
-            # センサータイプに基づいてモジュールをインポート
+            # Import the appropriate sensor module based on sensor_type
             module = importlib.import_module(f"fusion.sensors.{sensor_type}_measurement")
-            # センサークラスを取得
+            # Get a sensor class
             sensor_class = getattr(module, f"{sensor_type.upper()}")
-            # センサーインスタンスを作成して返す
+            # Create a sensor instance and return
             return sensor_class(config)
         except (ImportError, AttributeError) as e:
             print(f"Error creating sensor {sensor_type}: {e}")
@@ -40,7 +39,7 @@ class SensorFactory:
 class Sensors:
     def __init__(self, config):
         self.config = config_manager.load_config(config_path)
-        self.sensor_list = list(self.config.sensors.keys())
+        self.sensor_list = tuple(self.config.sensors.keys())
         self.sensor_instances = {}
         self.is_running = False
         
@@ -49,9 +48,10 @@ class Sensors:
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
         self.SAVE_DATA_DIR = config.save_data_dir
         self.SAVE_BUF_CSVDATA_PATH = self.SAVE_DATA_DIR + "/" + "measurement_raw_data.csv"
-        self.SEQUENCE_LENGTH = config.sequence_length
-        self.MAX_DATA_BUF_LEN = self.SEQUENCE_LENGTH // self.SAMPLING_FREQUENCY_HZ
-        self.SAVE_INTERVAL = config.save_interval
+        self.SEQUENCE_LENGTH = config.sequence_length # Windows size [s]
+        # Buffer size is determined by the relation of sequence length and sampling frequency
+        # Buffer secures data for SEQUENCE_LENGTH[s]
+        self.MAX_DATA_BUF_LEN = self.SEQUENCE_LENGTH * self.SAMPLING_FREQUENCY_HZ
         self.FPASS = config.filter_params.fpass
         self.FSTOP = config.filter_params.fstop
         self.GPASS = config.filter_params.gpass
@@ -59,10 +59,14 @@ class Sensors:
         self.is_filter = config.filter_params.is_filter
         self.is_show_real_time_data = config.is_show_real_time_data
         self.TIMEZONE = config.timezone
+        self.all_data_columns_list = ()
+        for sensor_name in self.sensor_list:
+            self.all_data_columns_list += tuple(self.config["sensors"][sensor_name]["data_columns"])            
+            
         
 
         
-        self.data_buffer = pd.DataFrame()  # データを保持するための空のDataFrame
+        self.data_buffer = pd.DataFrame()  # data buffer
     
         for sensor_type in self.sensor_list:
             sensor_config = self.config.sensors[sensor_type]
@@ -77,14 +81,38 @@ class Sensors:
     
 
     def get_sensor(self, sensor_type):
+        """
+        Retrieve the sensor instance corresponding to the specified sensor type.
+
+        Args:
+            sensor_type (str): The type of the sensor to retrieve.
+
+        Returns:
+            object: The sensor instance corresponding to the specified sensor type.
+                    Returns None if the sensor type does not exist.
+        """
         return self.sensor_instances.get(sensor_type)
-    
+
     def collect_data(self):
-        """全てのセンサーからデータを収集し、動的に辞書に格納する"""
+        """
+        Collect data from all sensors.
+
+        This method iterates over all sensor instances and collects data from each sensor.
+        The collected data is stored in a dictionary where the keys are sensor types and
+        the values are the data collected from the corresponding sensors.
+
+        Returns:
+            dict: A dictionary containing the collected data from all sensors.
+                The keys are sensor types and the values are the data from each sensor.
+
+        Raises:
+            Exception: If an error occurs while collecting data from any sensor, the exception
+                    is caught and printed.
+        """
         data = {}
         try:
             for sensor_type, sensor in self.sensor_instances.items():
-                # 各センサーからデータを取得し、辞書に格納
+                # get data from sensors
                 data[sensor_type] = sensor.get_data_from_sensor()
             return data
         except Exception as e:
@@ -92,20 +120,40 @@ class Sensors:
     
     
 
-    
-    
     def on_change_start_measurement(self):
+        """
+        Start the measurement process.
+
+        This method sets the is_running flag to True, indicating that the measurement
+        process should start.
+        """
         self.is_running = True
-    
+
     def on_change_stop_measurement(self):
+        """
+        Stop the measurement process.
+
+        This method sets the is_running flag to False, indicating that the measurement
+        process should stop.
+        """
         self.is_running = False
-
-
+        
 
     def filtering(self, df, labellist):
         """
-        Label list must dropped "Time" label.
-        Filter function doesn't need "Time" for the computation.
+        Apply a low-pass filter to the specified columns in the DataFrame.
+    
+        This method applies a Butterworth low-pass filter to each column specified
+        in the labellist. The "Time" column should be excluded from the labellist
+        as it is not needed for the computation.
+    
+        Args:
+            df (pd.DataFrame): The input DataFrame containing the data to be filtered.
+            labellist (list of str): A list of column names to be filtered. The "Time"
+                                     column should not be included in this list.
+    
+        Returns:
+            pd.DataFrame: A new DataFrame with the filtered data.
         """
         filtered_df = df.copy()
         for labelname in labellist:
@@ -124,19 +172,20 @@ class Sensors:
             )
         return filtered_df
 
-
     def convert_dictdata(self, current_time, sensor_data_dict):
-        """_summary_
-        複数のセンサから取得した入れ子辞書型データを
-        一つの辞書データに変換する
-        その後pandas dataframeに変換
-        データを取得した際のcurrent_timeの情報を紐づける
-
+        """
+        Convert nested dictionary data from multiple sensors into a single DataFrame.
+    
+        This method converts nested dictionary data obtained from multiple sensors
+        into a single dictionary and then converts it into a pandas DataFrame. The
+        current_time information is associated with the data.
+    
         Args:
-            sensor_data_dict (_type_): _description_
-
+            current_time (float): The current time at which the data was obtained.
+            sensor_data_dict (dict): A nested dictionary containing data from multiple sensors.
+    
         Returns:
-            _type_: _description_
+            pd.DataFrame: A DataFrame containing the converted data with the current time information.
         """
         converted_data = {'Time': current_time}
         for sensor, data in sensor_data_dict.items():
@@ -149,43 +198,80 @@ class Sensors:
 
 
     async def update_data_buffer(self, dict_data):
-        """センサーからのデータをバッファに追加し、必要に応じて保存する
-        
+        """
+        Add data from sensors to the buffer and save it if necessary.
+    
+        This method adds the provided sensor data to the internal buffer. If the buffer
+        exceeds the specified maximum length, the oldest data is saved to a CSV file
+        and removed from the buffer.
+    
         Args:
-            sensor_data_dict (dict): センサーからのデータ
+            dict_data (dict): The data from sensors to be added to the buffer.
         """
         
-        # バッファに追加
+        # Add data to the buffer
         self.data_buffer = pd.concat([self.data_buffer, dict_data], ignore_index=True)
-
-        # バッファが指定した長さを超えている場合、古いデータを保存
+    
+        # If the buffer exceeds the specified length, save the oldest data
         if len(self.data_buffer) > self.MAX_DATA_BUF_LEN:
-            # 古いデータをCSVに保存
+            # Save the oldest data to a CSV file
             old_data = self.data_buffer.head(self.MAX_DATA_BUF_LEN)
             
             await self.save_data(old_data, self.SAVE_BUF_CSVDATA_PATH)
             
-            # バッファを更新
-            self.data_buffer = self.data_buffer.tail(len(self.data_buffer) - self.MAX_DATA_BUF_LEN)
-        
+            # Update the buffer
+            self.data_buffer = self.data_buffer.tail(len(self.data_buffer) - self.MAX_DATA_BUF_LEN)        
     
     
     
-    # asyncio.to_threadにより同期関数を別スレッドで実行し、その結果を非同期で扱う
     async def save_data_async(self, df, path):
+        """
+        Save the DataFrame to a CSV file asynchronously.
+    
+        This method uses asyncio.to_thread to run the synchronous to_csv method
+        in a separate thread, allowing it to be handled asynchronously.
+    
+        Args:
+            df (pd.DataFrame): The DataFrame to be saved.
+            path (str): The file path where the DataFrame should be saved.
+        """
         if not os.path.isfile(path):
             await asyncio.to_thread(df.to_csv, path, sep=',', encoding='utf-8', index=False, header=True, mode='w')
         else:
             await asyncio.to_thread(df.to_csv, path, sep=',', encoding='utf-8', index=False, header=False, mode='a')
-
     
     async def save_data(self, df, path):
-        """非同期でデータをCSVファイルに保存する"""
+        """
+        Save the DataFrame to a CSV file asynchronously.
+    
+        This method calls save_data_async to save the DataFrame to a CSV file
+        asynchronously.
+    
+        Args:
+            df (pd.DataFrame): The DataFrame to be saved.
+            path (str): The file path where the DataFrame should be saved.
+        """
         await self.save_data_async(df, path)
         
 
 
     async def finish_measurement_and_save_data(self):
+        """
+        Finish the measurement process and save the data.
+
+        This method finalizes the measurement process by saving the buffered data
+        to a CSV file. It also applies filtering if specified and saves the filtered
+        data to a separate CSV file. The method handles time zone settings and
+        generates a timestamp for the file names.
+
+        The buffered data is saved to a temporary CSV file, which is then read back
+        and saved to a final file path with a timestamp. If filtering is enabled,
+        the filtered data is also saved. The temporary CSV file is deleted after
+        the data is saved.
+
+        Raises:
+            Exception: If an error occurs during the file operations.
+        """
         t_delta = datetime.timedelta(hours=9)
         TIMEZONE = datetime.timezone(t_delta, self.TIMEZONE)# You have to set your timezone
         now = datetime.datetime.now(TIMEZONE)
@@ -215,6 +301,23 @@ class Sensors:
 
         
 async def sensor_fusion_main():
+    """
+    Main function for sensor fusion.
+
+    This function initializes the sensor fusion process, starts the measurement loop,
+    collects data from multiple sensors, updates the data buffer, and handles real-time
+    data display. It also calculates and prints the sampling delay and reliability rate
+    upon termination.
+
+    The main loop runs until the measurement process is stopped, either by an exception
+    or a keyboard interrupt.
+
+    Raises:
+        Exception: If an error occurs during the measurement process, it is caught and printed.
+        KeyboardInterrupt: If a keyboard interrupt occurs, the measurement process is stopped
+                           and the data is saved.
+
+    """
     print("Start sensor fusion main")
     config = config_manager.load_config(config_path)
     sensors = Sensors(config["master"])
@@ -230,39 +333,33 @@ async def sensor_fusion_main():
     実行時間：最大0.04sほど(is_show_real_time_data==True)
     """
     try:
-        main_loop_start_time = perf_counter()# main loopの開始時間
+        main_loop_start_time = None
         while sensors.is_running:
-            iteration_start_time = perf_counter() #各イテレーションの開始時間
-            current_time = perf_counter() - main_loop_start_time # main loopの実行からの経過時間(Current time)
-            sampling_counter += 1 # サンプリングの回数
-            data = sensors.collect_data() # 複数のセンサからデータの取得
-            converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
-            # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
-            # さらにバッファが一定量に達したらcsvファイルに保存する
-            await sensors.update_data_buffer(converted_data)          
+            iteration_start_time = perf_counter() # Start time of each iteration
+            
+            if main_loop_start_time is None:
+                    main_loop_start_time = iteration_start_time  # initialize main loop start time
+            
+            current_time = perf_counter() - main_loop_start_time # Current time
+            
+            data = sensors.collect_data() # Get data from sensors                                        
+            sampling_counter += 1 # Num of sampling
+            
+            converted_data = sensors.convert_dictdata(current_time, data) # Convert data to dataframe format
+            # Update the data buffer. If it reaches the buffer limit, write the data to a CSV file.
+            await sensors.update_data_buffer(converted_data)
+            # Display data in real time. This process is executed on additional thread.
             if sensors.is_show_real_time_data:
-                """
-                This portion is for debug.
-                Time complexity is big so leads to deteriorate real time performance.
-                execution time: 0.0009526989997539204[s], 0.002001360000576824, 0.0024356100002478343, 0.0020515090000117198
-                """
-                all_sensor_data_columns = []
-                for key in sensors.config.sensors.keys():
-                    all_sensor_data_columns += sensors.config.sensors[key].data_columns
-                formatted_data = format_sensor_fusion_data(data, all_sensor_data_columns)
-                # 現在時間    
+                formatted_data = format_sensor_fusion_data(data, sensors.all_data_columns_list)    
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
-
-                
-
-                
-            # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
-            iteration_end_time = perf_counter() # イテレーションの終了時間
-            iteration_duration = iteration_end_time - iteration_start_time # 1イテレーションで経過した時間
+            
+            # Wait based on the sampling interval and execution time to maintain the sampling frequency.
+            iteration_end_time = perf_counter()
+            iteration_duration = iteration_end_time - iteration_start_time 
             print("Iteration duration is: {0} [s]".format(iteration_duration))
-            sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration) # サンプリング周波数(())
+            sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration)
             if sleep_time > 0:
                 wait_process(sleep_time)
     
@@ -276,29 +373,26 @@ async def sensor_fusion_main():
         
     finally:
         print("finish")
-         # サンプリングの個数と現在時間からサンプリングの遅れを計算
+         # Compute delay of sampling
         main_loop_end_time = perf_counter() - main_loop_start_time
         print("Program terminated")
         print("main loop is ended. current time is: {:.3f}".format(current_time))
         print("main loop is ended. end time is: {:.3f}".format(main_loop_end_time))
-        print("sampling num is: {}".format(sampling_counter))# 0基準であるためcurrent_time + 1個のサンプルになる
+        print("sampling num is: {}".format(sampling_counter))
         
         
         
-        # 理想的なサンプリング時間の計算
+        # Compute ideal sampliing time
         ideal_time = ((sampling_counter - 1) / sensors.SAMPLING_FREQUENCY_HZ)
-        # 遅れの計算
+        # Cpmpute a delay
         delay_time = current_time - ideal_time
-        # 遅れの割合をサンプリング時間で割った値を信頼性率とする
+        # reliability rate
         sampling_reliability_rate = (delay_time / (sampling_counter / sensors.SAMPLING_FREQUENCY_HZ)) * 100
         
         
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
 
-
-    
-    print()
 
 if __name__ == '__main__':
     asyncio.run(sensor_fusion_main())

@@ -4,7 +4,7 @@ from threading import Thread
 import os
 
 
-# 親ディレクトリをパスに追加
+# Add the parent directory to PATH
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -31,10 +31,10 @@ def setup_gui():
     
     root = tk.Tk()
     root.title("Measurement Control")
-    root.geometry("2048x1200")  # ウィンドウサイズを拡大
+    root.geometry("2048x1200")
     root.configure(bg='black')
 
-    # GUIのカスタマイズ
+    # GUI Settings
     log_frame = tk.Frame(root, bg='black')
     log_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
 
@@ -46,25 +46,55 @@ def setup_gui():
 
     log_text.config(yscrollcommand=log_scroll.set)
 
-    # 標準出力のリダイレクト
     sys.stdout = RedirectText(log_text)
 
     button_frame = tk.Frame(root, bg='black')
     button_frame.pack(pady=10)
 
-    start_button = tk.Button(button_frame, text="Start Measurement", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.start_measurement())).start(), bg='green', fg='white', font=('Arial', 14))
+    def start_measurement():
+        start_button.config(state=tk.DISABLED)  # Disable Start Button
+        stop_button.config(state=tk.NORMAL)  # Enable Stop Button
+        save_button.config(state=tk.DISABLED)  # Disable Save Button
+        Thread(target=lambda: measurement_control.run_async(measurement_control.start_measurement())).start()
+
+    def stop_measurement():
+        measurement_control.stop_measurement()
+        start_button.config(state=tk.NORMAL)  # Enable Start Button
+        stop_button.config(state=tk.DISABLED)  # Disable Stop Button
+        save_button.config(state=tk.NORMAL)  # Enable Save Button
+
+    # Button Style Settings
+    button_style = {
+        'bg': 'green',
+        'fg': 'white',
+        'font': ('Arial', 14),
+        'width': 5,
+        'height': 2,
+        'bd': 0,
+        'highlightthickness': 0,
+        'relief': tk.FLAT,
+        'cursor': 'hand2'
+    }
+
+    # Start Button
+    start_button = tk.Button(button_frame, text="▷", command=start_measurement, **button_style)
+    start_button.config(bg='green')
     start_button.pack(side=tk.LEFT, padx=10)
 
-    stop_button = tk.Button(button_frame, text="Stop Measurement", command=measurement_control.stop_measurement, bg='red', fg='white', font=('Arial', 14))
+    # Stop Button
+    stop_button = tk.Button(button_frame, text="□", command=stop_measurement, **button_style)
+    stop_button.config(state=tk.DISABLED, bg='red')
     stop_button.pack(side=tk.LEFT, padx=10)
-    
-    save_button = tk.Button(button_frame, text="Save", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.save_measurement_data())).start(), bg='blue', fg='white', font=('Arial', 14))
+
+    # Save Button
+    save_button = tk.Button(button_frame, text="Save", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.save_measurement_data())).start(), **button_style)
+    save_button.config(bg='blue')
     save_button.pack(side=tk.LEFT, padx=10)
+    
+    # Clean up when press a close button
+    root.protocol("WM_DELETE_WINDOW", on_closing)
 
-    root.protocol("WM_DELETE_WINDOW", on_closing)  # ウィンドウの閉じるボタンにクリーンアップ処理を設定
-
-    root.mainloop()
-
+    root.mainloop() # Call the Main Loop of tk
 
 
 if __name__ == '__main__':
