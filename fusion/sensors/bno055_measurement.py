@@ -19,7 +19,6 @@ class BNO055:
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
         self.SAVE_DATA_DIR = config.save_data_dir
         self.SEQUENCE_LENGTH = config.sequence_length
-        self.INIT_LEN = self.SEQUENCE_LENGTH // self.SAMPLING_FREQUENCY_HZ
         self.SAVE_INTERVAL = config.save_interval
         self.FPASS = config.filter_params.fpass
         self.FSTOP = config.filter_params.fstop
@@ -31,8 +30,8 @@ class BNO055:
         self.IsStop = True
         self.Is_show_real_time_data = config.is_show_real_time_data 
 
-        i2c_instance = board.I2C()
-        self.bno055_sensor = adafruit_bno055.BNO055_I2C(i2c_instance)
+        i2c_instance = board.I2C() # Create i2c instance
+        self.bno055_sensor = adafruit_bno055.BNO055_I2C(i2c_instance) # create BNO055_I2C instance
 
     def calibration(self):
         print("Start calibration!")
@@ -42,6 +41,23 @@ class BNO055:
 
 
     def calcEulerfromQuaternion(self, _w, _x, _y, _z):
+        """
+        Calculate Euler angles (roll, pitch, yaw) from quaternion components.
+
+        This method converts quaternion components (_w, _x, _y, _z) into Euler angles
+        (roll, pitch, yaw) in degrees. If any of the quaternion components are None,
+        it returns (0.0, 0.0, 0.0) and prints an error message.
+
+        Args:
+            _w (float): The w component of the quaternion.
+            _x (float): The x component of the quaternion.
+            _y (float): The y component of the quaternion.
+            _z (float): The z component of the quaternion.
+
+        Returns:
+            tuple: A tuple containing the roll, pitch, and yaw angles in degrees.
+                If an error occurs, it returns (0.0, 0.0, 0.0) and prints an error message.
+        """
         if None in (_w, _x, _y, _z):
             print(f"Error: One or more quaternion values are None: {_w}, {_x}, {_y}, {_z}")
             return 0.0, 0.0, 0.0
@@ -75,7 +91,19 @@ class BNO055:
             return 0.0, 0.0, 0.0
 
     def get_data_from_sensor(self):
-        # データを取得
+        """
+        Retrieve data from the BNO055 sensor and return it as a dictionary.
+
+        This method collects various sensor readings from the BNO055 sensor, including
+        Euler angles, gyroscope data, linear acceleration, quaternion, magnetic field,
+        and calibration status. It then constructs a dictionary with these values and
+        returns only the columns specified in self.COLUMNS.
+
+        Returns:
+            dict: A dictionary containing the sensor data. Only the columns specified
+                in self.COLUMNS are included in the returned dictionary.
+        """
+        # Get data
         euler_z, euler_y, euler_x = [val for val in self.bno055_sensor.euler]  # X: yaw, Y: pitch, Z: roll
         gyro_x, gyro_y, gyro_z = [val for val in self.bno055_sensor.gyro]  # Gyro[rad/s]
         linear_accel_x, linear_accel_y, linear_accel_z = [val for val in self.bno055_sensor.linear_acceleration]  # Linear acceleration[m/s^2]
@@ -84,7 +112,7 @@ class BNO055:
         magnetic_x, magnetic_y, magnetic_z = [val for val in self.bno055_sensor.magnetic]  # Magnetic field
         calibstat_sys, calibstat_gyro, calibstat_accel, calibstat_mag = [val for val in self.bno055_sensor.calibration_status]  # Status of calibration
 
-        # データの辞書
+        
         data_dict = {
             "linear_accel_x": linear_accel_x,
             "linear_accel_y": linear_accel_y,
@@ -111,11 +139,25 @@ class BNO055:
             "calibstat_mag": calibstat_mag
         }
 
-        # 設定されたデータカラムのみを返す
         return {column: data_dict[column] for column in self.COLUMNS if column in data_dict}
 
 
 def format_sensor_data(data, labels):
+    """
+    Format sensor data into a string for display.
+
+    This method takes a dictionary of sensor data and a list of labels, and formats
+    the data into a string where each label is followed by its corresponding value.
+    If a value is None, it is replaced with the string "None". Each label-value pair
+    is separated by " / ".
+
+    Args:
+        data (dict): The sensor data to format.
+        labels (list of str): The list of labels to include in the formatted string.
+
+    Returns:
+        str: A formatted string containing the sensor data.
+    """
     formatted_str = ""
     if isinstance(data, dict):
         for label in labels:
@@ -128,6 +170,19 @@ def format_sensor_data(data, labels):
     return formatted_str.rstrip(" / ")
 
 def test_main():
+    """
+    Main function for testing sensor data collection and display.
+
+    This function initializes the BNO055 sensor, starts a loop to collect data,
+    formats the data for display, and prints it in real-time. It also calculates
+    and prints the sampling delay and reliability rate upon termination.
+
+    The main loop runs until interrupted by the user.
+
+    Raises:
+        KeyboardInterrupt: If a keyboard interrupt occurs, the loop is terminated
+                           and the final statistics are printed.
+    """
     from utils.tools import wait_process
     from time import perf_counter
     import matplotlib.pyplot as plt
@@ -139,25 +194,25 @@ def test_main():
     
     start_time = perf_counter()
     sampling_counter = 0
-    # 0基準のため最初のサンプリングは0秒に紐づけられる
+    
     try:
         main_loop_start_time = perf_counter()
         while True:
             iteration_start_time = perf_counter()
             
-            # データ取得処理
+            # Data acquisition process
             data = meas_bno055.get_data_from_sensor()
             current_time = perf_counter() - start_time
             sampling_counter += 1
     
             if meas_bno055.Is_show_real_time_data:
                 formatted_data = format_sensor_data(data, meas_bno055.COLUMNS)
-                # 現在時間    
+                # current time    
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
             
-            # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
+            # Wait to meet the sampling frequency based on the sampling interval and execution time
             elapsed_time = perf_counter() - iteration_start_time
             sleep_time = meas_bno055.SAMPLING_TIME - elapsed_time
             if sleep_time > 0:
@@ -167,26 +222,22 @@ def test_main():
         print("Interrupted by user")
     
     finally:
-        # サンプリングの個数と現在時間からサンプリングの遅れを計算
+        # Calculate the sampling delay from the number of samples and the current time
         main_loop_end_time = perf_counter() - main_loop_start_time
         print("Program terminated")
         print("main loop is ended. current time is: {:.3f}".format(current_time))
         print("main loop is ended. end time is: {:.3f}".format(main_loop_end_time))
-        print("sampling num is: {}".format(sampling_counter))# 0基準であるためcurrent_time + 1個のサンプルになる
+        print("sampling num is: {}".format(sampling_counter)) # Since it is 0-based, the number of samples is current_time + 1
         
-        
-        
-        # 理想的なサンプリング時間の計算
+        # Calculate the ideal sampling time
         ideal_time = ((sampling_counter - 1) / meas_bno055.SAMPLING_FREQUENCY_HZ)
-        # 遅れの計算
+        # Calculate the delay
         delay_time = current_time - ideal_time
-        # 遅れの割合をサンプリング時間で割った値を信頼性率とする
+        # The reliability rate is the delay divided by the sampling time
         sampling_reliability_rate = (delay_time / (sampling_counter / meas_bno055.SAMPLING_FREQUENCY_HZ)) * 100
-        
         
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
-
         
 
 

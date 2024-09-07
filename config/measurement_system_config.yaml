@@ -1,9 +1,9 @@
 # Sensor Configuration
 sensors:
   bno055:
-    sampling_frequency_hz: 60
+    sampling_frequency_hz: 10
     sequence_length: 1000
-    save_interval: 10
+    save_interval: 100
     data_columns:
       # - "Time"
       - "linear_accel_x"
@@ -61,9 +61,9 @@ sensors:
 
 
 master:
-  sampling_frequency_hz: 60
+  sampling_frequency_hz: 10
   sequence_length: 1000
-  save_interval: 10
+  save_interval: 100
   filter_params:
       fpass: 15
       fstop: 10
