@@ -4,7 +4,7 @@ from threading import Thread
 import os
 
 
-# 親ディレクトリをパスに追加
+# Add the parent directory to PATH
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -31,10 +31,10 @@ def setup_gui():
     
     root = tk.Tk()
     root.title("Measurement Control")
-    root.geometry("2048x1200")  # ウィンドウサイズを拡大
+    root.geometry("2048x1200")
     root.configure(bg='black')
 
-    # GUIのカスタマイズ
+    # GUI Settings
     log_frame = tk.Frame(root, bg='black')
     log_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
 
@@ -46,25 +46,24 @@ def setup_gui():
 
     log_text.config(yscrollcommand=log_scroll.set)
 
-    # 標準出力のリダイレクト
     sys.stdout = RedirectText(log_text)
 
     button_frame = tk.Frame(root, bg='black')
     button_frame.pack(pady=10)
 
     def start_measurement():
-        start_button.config(state=tk.DISABLED)  # Startボタンを無効化
-        stop_button.config(state=tk.NORMAL)  # Stopボタンを有効化
-        save_button.config(state=tk.DISABLED)  # Saveボタンを無効化
+        start_button.config(state=tk.DISABLED)  # Disable Start Button
+        stop_button.config(state=tk.NORMAL)  # Enable Stop Button
+        save_button.config(state=tk.DISABLED)  # Disable Save Button
         Thread(target=lambda: measurement_control.run_async(measurement_control.start_measurement())).start()
 
     def stop_measurement():
         measurement_control.stop_measurement()
-        start_button.config(state=tk.NORMAL)  # Startボタンを有効化
-        stop_button.config(state=tk.DISABLED)  # Stopボタンを無効化
-        save_button.config(state=tk.NORMAL)  # Saveボタンを有効化
+        start_button.config(state=tk.NORMAL)  # Enable Start Button
+        stop_button.config(state=tk.DISABLED)  # Disable Stop Button
+        save_button.config(state=tk.NORMAL)  # Enable Save Button
 
-    # ボタンのスタイルを丸く設定
+    # Button Style Settings
     button_style = {
         'bg': 'green',
         'fg': 'white',
@@ -77,24 +76,25 @@ def setup_gui():
         'cursor': 'hand2'
     }
 
-    # Startボタンを作成
+    # Start Button
     start_button = tk.Button(button_frame, text="▷", command=start_measurement, **button_style)
-    start_button.config(bg='green')  # Startボタンの色を緑に設定
+    start_button.config(bg='green')
     start_button.pack(side=tk.LEFT, padx=10)
 
-    # Stopボタンを作成
+    # Stop Button
     stop_button = tk.Button(button_frame, text="□", command=stop_measurement, **button_style)
-    stop_button.config(state=tk.DISABLED, bg='red')  # Stopボタンの初期状態を無効化し、色を赤に設定
+    stop_button.config(state=tk.DISABLED, bg='red')
     stop_button.pack(side=tk.LEFT, padx=10)
 
-    # Saveボタンを作成
+    # Save Button
     save_button = tk.Button(button_frame, text="Save", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.save_measurement_data())).start(), **button_style)
-    save_button.config(bg='blue')  # Saveボタンの色を青に設定
+    save_button.config(bg='blue')
     save_button.pack(side=tk.LEFT, padx=10)
+    
+    # Clean up when press a close button
+    root.protocol("WM_DELETE_WINDOW", on_closing)
 
-    root.protocol("WM_DELETE_WINDOW", on_closing)  # ウィンドウの閉じるボタンにクリーンアップ処理を設定
-
-    root.mainloop()
+    root.mainloop() # Call the Main Loop of tk
 
 
 if __name__ == '__main__':

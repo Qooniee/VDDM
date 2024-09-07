@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-# Add parent directory to path
+# Add the parent directory to path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
@@ -43,7 +43,7 @@ class MeasurementControl:
         if not self.is_running:
             self.is_running = True
             print("Measurement started.")
-            await self.measurement(self.sensors, load_config(self.config_path))
+            await self.measurement(self.sensors)
         else:
             print("Measurement is already running.")
     
@@ -68,13 +68,12 @@ class MeasurementControl:
         print("Pressed save button")
         await self.sensors.finish_measurement_and_save_data()
 
-    async def measurement(self, sensors, config):
+    async def measurement(self, sensors):
         """
         Handles the measurement process, including data collection, processing, and display.
 
         Args:
             sensors (Sensors): The Sensors instance used for data collection.
-            config (dict): Configuration dictionary for the sensors.
         """
         print("Measurement function called.")
         main_loop_start_time = None
@@ -87,33 +86,32 @@ class MeasurementControl:
             print(f"File '{self.sensors.SAVE_BUF_CSVDATA_PATH}' is not existed")
         try:
             while self.is_running:
-                iteration_start_time = perf_counter() #各イテレーションの開始時間
+                iteration_start_time = perf_counter() # Start time of each iteration
                 
                 if main_loop_start_time is None:
-                    main_loop_start_time = iteration_start_time  # 最初のイテレーションで開始時間を設定
+                    main_loop_start_time = iteration_start_time  # Initialize main loop start time
                     
-                current_time = perf_counter() - main_loop_start_time # main loopの実行からの経過時間(Current time)
-                data = sensors.collect_data() # 複数のセンサからデータの取得
-                sampling_counter += 1 # サンプリングの回数                                       
-                # print("Current Time is: {:.3f}".format(current_time))
-                converted_data = sensors.convert_dictdata(current_time, data) # 複数のセンサから取得したデータをdataframeに変換
-                # 複数のセンサから取得したデータを変換したdataframeをバッファに追加
-                # さらにバッファが一定量に達したらcsvファイルに保存する
+                current_time = perf_counter() - main_loop_start_time # Current time
+                data = sensors.collect_data() # Get data from multiple sensors
+                sampling_counter += 1 # Count sampling times                                       
+                converted_data = sensors.convert_dictdata(current_time, data) # Convert data to dataframe format
+
+                # Update the data buffer. If it reaches the buffer limit, write the data to a CSV file.
                 await sensors.update_data_buffer(converted_data)
-                # リアルタイムデータの表示を別スレッドで実行
+                # Display data in real time. This process is executed on additional thread.
                 if sensors.is_show_real_time_data:
                     show_real_time_data_thread = threading.Thread(target=self.show_real_time_data, 
                                                         args=(sensors, data, current_time), 
                                                         name="show_real_time_data_thread")
                     show_real_time_data_thread.start()
 
-                # サンプリング間隔と処理の実行時間に応じてサンプリング周波数を満たすように待機
-                iteration_end_time = perf_counter() # イテレーションの終了時間
-                iteration_duration = iteration_end_time - iteration_start_time # 1イテレーションで経過した時間
-                sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration) # サンプリング周波数(())
+                # Wait based on the sampling interval and execution time to maintain the sampling frequency.
+                iteration_end_time = perf_counter() # Iteration end time
+                iteration_duration = iteration_end_time - iteration_start_time # Elapsed time of each iteration
+                sleep_time = max(0, sensors.SAMPLING_TIME - iteration_duration) # Sleep time
                 if sleep_time > 0:
                     wait_process(sleep_time)
-                    
+            # Wait the finish of the last thread 
             show_real_time_data_thread.join()
                 
         except Exception as e:

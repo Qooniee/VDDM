@@ -2,6 +2,10 @@ data
 *.csv
 .venv
 memo.txt
+*.png
+*.jpeg
+*.jpg
+
 #[ Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
