@@ -19,7 +19,7 @@ sys.path.append(parent_dir)
 from config.config_manager import load_config
 config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
 
-class ELM327:
+class OBDSCANNER:
     def __init__(self, config):
         """
         Initialize the ELM327 class with configuration parameters.
@@ -29,6 +29,7 @@ class ELM327:
         """
         self.COLUMNS = config.data_columns    
         self.SAMPLING_FREQUENCY_HZ = config.sampling_frequency_hz
+        self.device = config.device
         self.SAMPLING_TIME = 1 / self.SAMPLING_FREQUENCY_HZ
         self.SAVE_DATA_DIR = config.save_data_dir
         self.SEQUENCE_LENGTH = config.sequence_length
@@ -37,7 +38,7 @@ class ELM327:
         self.GPASS = config.filter_params.gpass
         self.GSTOP = config.filter_params.gstop
         self.Isfilter = config.filter_params.is_filter
-        self.res = self.connect_to_elm327()
+        self.res = self.connect_to_obdscanner()
         
         self.is_offline = config.is_offline
         self.IsStart = False
@@ -46,24 +47,47 @@ class ELM327:
 
     def initialize_BLE(self):
         """
-        Initialize Bluetooth Low Energy (BLE) for ELM327 connection.
+        Initialize Bluetooth Low Energy (BLE) for OBDScanner connection.
         """
-        os.system('sudo hcitool scan')
-        os.system('sudo hciconfig hci0 up')
-        os.system('sudo rfcomm bind 0 8A:2A:D4:FF:38:F3') # ELM327
-        os.system('sudo rfcomm listen 0 1 &')
+        def run_command(command):
+            result = os.system(command)
+            if result != 0:
+                print(f"Command failed: {command}")
+            return result
+        # os.system('sudo hcitool scan') # Scan Bluetooth devices and get MAC Addresses
+        # os.system('sudo hciconfig hci0 up') # Activate hci0 which is a bluetooth interface
+        # os.system('sudo rfcomm release 2')  # Release any existing rfcomm2 bindings
+        # os.system('sudo rfcomm bind 2 00:04:3E:84:7D:4C')  # Bind to the OBDLink MX+ device on rfcomm2
+        # os.system('sudo rfcomm listen 2 1 &')
+        if run_command('sudo hcitool scan') != 0:
+            return
+        if run_command('sudo hciconfig hci0 up') != 0:
+            return
+        if run_command('sudo rfcomm release 0') != 0:
+            return
+        if self.device == 'ELM327' and run_command('sudo rfcomm bind 0 8A:2A:D4:FF:38:F3') != 0:
+            return
+        if self.device == 'MXPlus' and run_command('sudo rfcomm bind 0 00:04:3E:84:7D:4C') != 0:
+            return
+        if run_command('sudo rfcomm listen 0 1 &') != 0:
+            return
 
-    def connect_to_elm327(self):
+
+
+
+
+    def connect_to_obdscanner(self):
         """
         Establish a connection to the ELM327 device.
-
+    
         Returns:
             res (obd.OBDStatus): The connection status of the ELM327 device.
         """
         res = None
         try:
-            self.initialize_BLE()
-            self.connection = obd.OBD()
+            self.initialize_BLE() # Initialize BLE
+            self.connection = obd.OBD("/dev/rfcomm0", baudrate=115200, fast=False, timeout=30)
+            #self.connection = obd.OBD("/dev/rfcomm2")  # Specify the serial port
             print(self.connection.status())
             res = self.connection.status()
             if res == obd.OBDStatus.CAR_CONNECTED:
@@ -72,12 +96,20 @@ class ELM327:
             else:
                 print("----------Connection establishment failed!----------")
                 print("End program. Please check settings of the computer and ELM327")
+        except obd.OBDCommandError as e:
+            print("----------OBD Command Error!----------")
+            print(e)
+        except obd.OBDResponseError as e:
+            print("----------OBD Response Error!----------")
+            print(e)
+        except obd.OBDConnectionError as e:
+            print("----------OBD Connection Error!----------")
+            print(e)
         except Exception as e:
             print("----------Exception!----------")
             print(e)
         finally:
             return res
-
     def get_data_from_sensor(self):
         """
         Retrieve data from the sensor.
@@ -222,7 +254,7 @@ def test_main():
     
     print("Main start")
     config = load_config(config_path)
-    meas_elm327 = ELM327(config.sensors['elm327'])
+    meas_obdscanner = OBDSCANNER(config.sensors['obdscanner'])
     # res = meas_elm327.connect_to_elm327()
     
     start_time = perf_counter()
@@ -233,20 +265,20 @@ def test_main():
             iteration_start_time = perf_counter()
             
             # Data acquisition process
-            data = meas_elm327.get_data_from_sensor()
+            data = meas_obdscanner.get_data_from_sensor()
             
             current_time = perf_counter() - start_time
             sampling_counter += 1
     
-            if meas_elm327.Is_show_real_time_data:
-                formatted_data = format_sensor_data(data, meas_elm327.COLUMNS)
+            if meas_obdscanner.Is_show_real_time_data:
+                formatted_data = format_sensor_data(data, meas_obdscanner.COLUMNS)
                 print("--------------------------------------------------------------------")
                 print("Current Time is: {:.3f}".format(current_time))
                 print(formatted_data)
             
             # Wait to meet the sampling frequency based on the sampling interval and execution time
             elapsed_time = perf_counter() - iteration_start_time
-            sleep_time = meas_elm327.SAMPLING_TIME - elapsed_time
+            sleep_time = meas_obdscanner.SAMPLING_TIME - elapsed_time
             if sleep_time > 0:
                 wait_process(sleep_time)
     
@@ -261,11 +293,11 @@ def test_main():
         print("sampling num is: {}".format(sampling_counter))
         
         # Calculate the ideal sampling time
-        ideal_time = ((sampling_counter - 1) / meas_elm327.SAMPLING_FREQUENCY_HZ)
+        ideal_time = ((sampling_counter - 1) / meas_obdscanner.SAMPLING_FREQUENCY_HZ)
         # Calculate the delay
         delay_time = current_time - ideal_time
         # The reliability rate is the delay divided by the sampling time
-        sampling_reliability_rate = (delay_time / (sampling_counter / meas_elm327.SAMPLING_FREQUENCY_HZ)) * 100
+        sampling_reliability_rate = (delay_time / (sampling_counter / meas_obdscanner.SAMPLING_FREQUENCY_HZ)) * 100
         
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))

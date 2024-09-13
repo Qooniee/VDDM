@@ -48,22 +48,43 @@ class ELM327:
         """
         Initialize Bluetooth Low Energy (BLE) for ELM327 connection.
         """
-        os.system('sudo hcitool scan')
-        os.system('sudo hciconfig hci0 up')
-        os.system('sudo rfcomm bind 0 8A:2A:D4:FF:38:F3') # ELM327
-        os.system('sudo rfcomm listen 0 1 &')
+        def run_command(command):
+            result = os.system(command)
+            if result != 0:
+                print(f"Command failed: {command}")
+            return result
+        # os.system('sudo hcitool scan') # Scan Bluetooth devices and get MAC Addresses
+        # os.system('sudo hciconfig hci0 up') # Activate hci0 which is a bluetooth interface
+        # os.system('sudo rfcomm release 2')  # Release any existing rfcomm2 bindings
+        # os.system('sudo rfcomm bind 2 00:04:3E:84:7D:4C')  # Bind to the OBDLink MX+ device on rfcomm2
+        # os.system('sudo rfcomm listen 2 1 &')
+        if run_command('sudo hcitool scan') != 0:
+            return
+        if run_command('sudo hciconfig hci0 up') != 0:
+            return
+        if run_command('sudo rfcomm release 2') != 0:
+            return
+        if run_command('sudo rfcomm bind 2 00:04:3E:84:7D:4C') != 0:
+            return
+        if run_command('sudo rfcomm listen 2 1 &') != 0:
+            return
+
+
+
+
 
     def connect_to_elm327(self):
         """
         Establish a connection to the ELM327 device.
-
+    
         Returns:
             res (obd.OBDStatus): The connection status of the ELM327 device.
         """
         res = None
         try:
-            self.initialize_BLE()
-            self.connection = obd.OBD()
+            self.initialize_BLE() # Initialize BLE
+            self.connection = obd.OBD("/dev/rfcomm2", baudrate=115200, fast=False, timeout=30)
+            #self.connection = obd.OBD("/dev/rfcomm2")  # Specify the serial port
             print(self.connection.status())
             res = self.connection.status()
             if res == obd.OBDStatus.CAR_CONNECTED:
@@ -72,12 +93,20 @@ class ELM327:
             else:
                 print("----------Connection establishment failed!----------")
                 print("End program. Please check settings of the computer and ELM327")
+        except obd.OBDCommandError as e:
+            print("----------OBD Command Error!----------")
+            print(e)
+        except obd.OBDResponseError as e:
+            print("----------OBD Response Error!----------")
+            print(e)
+        except obd.OBDConnectionError as e:
+            print("----------OBD Connection Error!----------")
+            print(e)
         except Exception as e:
             print("----------Exception!----------")
             print(e)
         finally:
             return res
-
     def get_data_from_sensor(self):
         """
         Retrieve data from the sensor.

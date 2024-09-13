@@ -1,46 +1,46 @@
 # Sensor Configuration
 sensors:
-  bno055:
-    sampling_frequency_hz: 30
-    sequence_length: 5 #[s]
-    data_columns:
-      # - "Time"
-      - "linear_accel_x"
-      - "linear_accel_y"
-      - "linear_accel_z"
-      - "gyro_x"
-      - "gyro_y"
-      - "gyro_z"
-      - "euler_x"
-      - "euler_y"
-      - "euler_z"
-      - "quat_roll"
-      - "quat_pitch"
-      - "quat_yaw"
-      - "quaternion_1"
-      - "quaternion_2"
-      - "quaternion_3"
-      - "quaternion_4"
-      - "magnetic_x"
-      - "magnetic_y"
-      - "magnetic_z"
-      - "calibstat_sys"
-      - "calibstat_gyro"
-      - "calibstat_accel"
-      - "calibstat_mag"
-    filter_params:
-      fpass: 15
-      fstop: 10
-      gpass: 3
-      gstop: 5
-      is_filter: False
-    perform_calibration: False
-    save_data_dir: /home/rasut/workspaces/VDDM/data
-    is_show_real_time_data: False
-    is_offline: True
+  # bno055:
+  #   sampling_frequency_hz: 50
+  #   sequence_length: 5 #[s]
+  #   data_columns:
+  #     # - "Time"
+  #     - "linear_accel_x"
+  #     - "linear_accel_y"
+  #     - "linear_accel_z"
+  #     - "gyro_x"
+  #     - "gyro_y"
+  #     - "gyro_z"
+  #     - "euler_x"
+  #     - "euler_y"
+  #     - "euler_z"
+  #     - "quat_roll"
+  #     - "quat_pitch"
+  #     - "quat_yaw"
+  #     - "quaternion_1"
+  #     - "quaternion_2"
+  #     - "quaternion_3"
+  #     - "quaternion_4"
+  #     - "magnetic_x"
+  #     - "magnetic_y"
+  #     - "magnetic_z"
+  #     - "calibstat_sys"
+  #     - "calibstat_gyro"
+  #     - "calibstat_accel"
+  #     - "calibstat_mag"
+  #   filter_params:
+  #     fpass: 15
+  #     fstop: 10
+  #     gpass: 3
+  #     gstop: 5
+  #     is_filter: False
+  #   perform_calibration: False
+  #   save_data_dir: /home/rasut/workspaces/VDDM/data
+  #   is_show_real_time_data: False
+  #   is_offline: True
 
   # elm327:
-  #   sampling_frequency_hz: 50
+  #   sampling_frequency_hz: 5
   #   sequence_length: 10 # [s]
   #   data_columns:
   #     - "SPEED"
@@ -55,11 +55,30 @@ sensors:
   #     is_filter: False
   #   save_data_dir: /home/rasut/workspaces/VDDM/data
   #   is_show_real_time_data: True
-  #   is_offline: True
+  #   is_offline: False
+
+  obdscanner:
+    sampling_frequency_hz: 5
+    sequence_length: 10 # [s]
+    device: "MXPlus" # ELM327
+    data_columns:
+      - "SPEED"
+      - "RPM"
+      - "THROTTLE_POS"
+      - "THROTTLE_POS_B"
+    filter_params:
+      fpass: 3
+      fstop: 5
+      gpass: 3
+      gstop: 8
+      is_filter: False
+    save_data_dir: /home/rasut/workspaces/VDDM/data
+    is_show_real_time_data: True
+    is_offline: False
 
 
 master:
-  sampling_frequency_hz: 30
+  sampling_frequency_hz: 5
   sequence_length: 5 #[s]
   filter_params:
       fpass: 15
@@ -69,5 +88,5 @@ master:
       is_filter: False
   save_data_dir: /home/rasut/workspaces/VDDM/data
   is_show_real_time_data: False
-  is_offline: True
+  is_offline: False
   timezone: "JST"
