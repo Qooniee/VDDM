@@ -58,14 +58,14 @@ sensors:
   #   is_offline: False
 
   obdscanner:
-    sampling_frequency_hz: 5
-    sequence_length: 10 # [s]
+    sampling_frequency_hz: 6
+    sequence_length: 5 # [s]
     device: "MXPlus" # ELM327
     data_columns:
       - "SPEED"
-      - "RPM"
-      - "THROTTLE_POS"
-      - "THROTTLE_POS_B"
+      # - "RPM"
+      # - "THROTTLE_POS"
+      # - "THROTTLE_POS_B"
     filter_params:
       fpass: 3
       fstop: 5
@@ -78,7 +78,7 @@ sensors:
 
 
 master:
-  sampling_frequency_hz: 5
+  sampling_frequency_hz: 6
   sequence_length: 5 #[s]
   filter_params:
       fpass: 15

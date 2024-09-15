@@ -73,9 +73,6 @@ class OBDSCANNER:
             return
 
 
-
-
-
     def connect_to_obdscanner(self):
         """
         Establish a connection to the ELM327 device.
