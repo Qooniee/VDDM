@@ -58,6 +58,30 @@ class MeasurementControl:
             print("Measurement stopped.")
         else:
             print("Measurement is not running.")
+            
+    def on_change_sampling_frequency(self, new_sampling_frequency):
+        """
+        Updates the sampling frequency of the sensors.
+
+        Args:
+            new_sampling_frequency (float): New sampling frequency in Hz (samples per second).
+        """
+        PREV_SAMPLING_FREQUENCY_HZ = self.sensors.SAMPLING_FREQUENCY_HZ
+        PREV_SAMPLING_TIME = self.sensors.SAMPLING_TIME
+        PREV_MAX_DATA_BUF_LEN = self.sensors.MAX_DATA_BUF_LEN
+        
+        self.sensors.SAMPLING_FREQUENCY_HZ = new_sampling_frequency
+        self.sensors.SAMPLING_TIME = 1 / new_sampling_frequency
+        self.sensors.MAX_DATA_BUF_LEN = int(self.sensors.SEQUENCE_LENGTH * self.sensors.SAMPLING_FREQUENCY_HZ)
+        print("--------------------------------BEFORE----------------------------------------")
+        print("previous sampling frequency: {0}Hz".format(PREV_SAMPLING_FREQUENCY_HZ))
+        print("previous sampling time     : {0}s".format(PREV_SAMPLING_TIME))
+        print("previous max buffer length : {0}s".format(PREV_MAX_DATA_BUF_LEN))
+        print("--------------------------------AFTER----------------------------------------")
+        print("Update sampling frequency: {0}Hz".format(self.sensors.SAMPLING_FREQUENCY_HZ))
+        print("Update sampling time     : {0}s".format(self.sensors.SAMPLING_TIME))
+        print("Update max buffer length : {0}s".format(self.sensors.MAX_DATA_BUF_LEN))
+        
     
     async def save_measurement_data(self):
         """

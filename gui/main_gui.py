@@ -51,10 +51,32 @@ def setup_gui():
     button_frame = tk.Frame(root, bg='black')
     button_frame.pack(pady=10)
 
+
+    def update_sampling_frequency():
+        try:
+            new_frequency = float(freq_entry.get())
+            if new_frequency <= 0:
+                raise ValueError("Frequency must be greater than zero.")
+            measurement_control.on_change_sampling_frequency(new_frequency)
+        except ValueError as e:
+            print(f"Invalid input for frequency: {e}")
+
+    
+    freq_label = tk.Label(button_frame, text="Sampling Frequency (Hz):", bg='black', fg='white', font=('Arial', 14))
+    freq_label.pack(side=tk.LEFT, padx=10)
+    freq_entry = tk.Entry(button_frame, width=5, font=('Arial', 14))
+    freq_entry.insert(0, str(measurement_control.sensors.SAMPLING_FREQUENCY_HZ))  # Default value
+    freq_entry.pack(side=tk.LEFT, padx=10)
+    update_button = tk.Button(button_frame, text="Update Frequency", command=update_sampling_frequency)
+    update_button.pack(side=tk.LEFT, padx=10)
+
+
+
     def start_measurement():
         start_button.config(state=tk.DISABLED)  # Disable Start Button
         stop_button.config(state=tk.NORMAL)  # Enable Stop Button
         save_button.config(state=tk.DISABLED)  # Disable Save Button
+        freq_entry.config(state=tk.DISABLED)  # Disable frequency entry
         Thread(target=lambda: measurement_control.run_async(measurement_control.start_measurement())).start()
 
     def stop_measurement():
@@ -62,6 +84,8 @@ def setup_gui():
         start_button.config(state=tk.NORMAL)  # Enable Start Button
         stop_button.config(state=tk.DISABLED)  # Disable Stop Button
         save_button.config(state=tk.NORMAL)  # Enable Save Button
+        freq_entry.config(state=tk.NORMAL)  # Re-enable frequency entry
+
 
     # Button Style Settings
     button_style = {
