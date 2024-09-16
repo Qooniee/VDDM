@@ -25,36 +25,34 @@ class RedirectText:
 def setup_gui():
     measurement_control = MeasurementControl("config/measurement_system_config.yaml")
     
-    def on_closing():
-        measurement_control.cleanup()
-        root.destroy()
+    def update_sampling_frequency():
+        try:
+            new_frequency = float(freq_entry.get())
+            if new_frequency <= 0:
+                raise ValueError("Frequency must be greater than zero.")
+            measurement_control.on_change_sampling_frequency(new_frequency)
+        except ValueError as e:
+            print(f"Invalid input for frequency: {e}")
     
-    root = tk.Tk()
-    root.title("Measurement Control")
-    root.geometry("2048x1200")
-    root.configure(bg='black')
-
-    # GUI Settings
-    log_frame = tk.Frame(root, bg='black')
-    log_frame.pack(padx=20, pady=20, fill=tk.BOTH, expand=True)
-
-    log_text = tk.Text(log_frame, wrap=tk.WORD, height=30, width=100, bg='black', fg='white', font=('Courier', 12))
-    log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    log_scroll = tk.Scrollbar(log_frame, command=log_text.yview, bg='gray')
-    log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
-    log_text.config(yscrollcommand=log_scroll.set)
-
-    sys.stdout = RedirectText(log_text)
-
-    button_frame = tk.Frame(root, bg='black')
-    button_frame.pack(pady=10)
-
+    def update_sequence_length():
+        try:
+            new_sequence_length = int(sequence_length_entry.get())
+            if new_sequence_length <= 0:
+                raise ValueError("Sequence length must be greater than zero.")
+            measurement_control.on_change_sequence_length(new_sequence_length)
+        except ValueError as e:
+            print(f"Invalid input for sequence length: {e}")
+    
+    def update_parameters():
+        update_sampling_frequency()
+        update_sequence_length()
+    
+    
     def start_measurement():
         start_button.config(state=tk.DISABLED)  # Disable Start Button
         stop_button.config(state=tk.NORMAL)  # Enable Stop Button
         save_button.config(state=tk.DISABLED)  # Disable Save Button
+        freq_entry.config(state=tk.DISABLED)  # Disable frequency entry
         Thread(target=lambda: measurement_control.run_async(measurement_control.start_measurement())).start()
 
     def stop_measurement():
@@ -62,6 +60,32 @@ def setup_gui():
         start_button.config(state=tk.NORMAL)  # Enable Start Button
         stop_button.config(state=tk.DISABLED)  # Disable Stop Button
         save_button.config(state=tk.NORMAL)  # Enable Save Button
+        freq_entry.config(state=tk.NORMAL)  # Re-enable frequency entry
+
+
+    def on_closing():
+        measurement_control.cleanup()
+        root.destroy()
+    
+    
+    # ----------- GUI Layout ---------- #
+    
+    root = tk.Tk()
+    root.title("Measurement Control")
+    root.geometry("2048x1200")
+    root.configure(bg='black')
+
+    # Log frame
+    log_frame = tk.Frame(root, bg='black')
+    log_text = tk.Text(log_frame, wrap=tk.WORD, height=30, width=100, bg='black', fg='white', font=('Courier', 12))
+    log_scroll = tk.Scrollbar(log_frame, command=log_text.yview, bg='gray')
+    log_text.config(yscrollcommand=log_scroll.set)
+    
+    log_frame.place(relx=0, rely=0.5, relwidth=1.0, relheight=0.5)
+    log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    sys.stdout = RedirectText(log_text)
 
     # Button Style Settings
     button_style = {
@@ -77,26 +101,46 @@ def setup_gui():
     }
 
     # Start Button
-    start_button = tk.Button(button_frame, text="▷", command=start_measurement, **button_style)
+    start_button = tk.Button(root, text="▷", command=start_measurement, **button_style)
     start_button.config(bg='green')
-    start_button.pack(side=tk.LEFT, padx=10)
+    start_button.place(x=10, y=10, width=80, height=60)
 
     # Stop Button
-    stop_button = tk.Button(button_frame, text="□", command=stop_measurement, **button_style)
+    stop_button = tk.Button(root, text="□", command=stop_measurement, **button_style)
     stop_button.config(state=tk.DISABLED, bg='red')
-    stop_button.pack(side=tk.LEFT, padx=10)
+    stop_button.place(x=100, y=10, width=80, height=60)
 
     # Save Button
-    save_button = tk.Button(button_frame, text="Save", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.save_measurement_data())).start(), **button_style)
+    save_button = tk.Button(root, text="Save", command=lambda: Thread(target=lambda: measurement_control.run_async(measurement_control.save_measurement_data())).start(), **button_style)
     save_button.config(bg='blue')
-    save_button.pack(side=tk.LEFT, padx=10)
+    save_button.place(x=190, y=10, width=80, height=60)
+
+    # Sampling Frequency Entry
+    freq_label = tk.Label(root, text="fs (Hz):", bg='black', fg='white', font=('Arial', 14))
+    freq_label.place(x=280, y=10)
     
+    freq_entry = tk.Entry(root, width=5, font=('Arial', 14))
+    freq_entry.insert(0, str(measurement_control.sensors.SAMPLING_FREQUENCY_HZ))  # Default value
+    freq_entry.place(x=380, y=10)
+
+    # Sequence Length Entry
+    sequence_length_label = tk.Label(root, text="Seq Len (s):", bg='black', fg='white', font=('Arial', 14))
+    sequence_length_label.place(x=480, y=10)
+    
+    sequence_length_entry = tk.Entry(root, width=5, font=('Arial', 14))
+    sequence_length_entry.insert(0, str(measurement_control.sensors.SEQUENCE_LENGTH))  # Default value
+    sequence_length_entry.place(x=610, y=10)
+
+    # Update Button
+    update_button = tk.Button(root, text="Update", command=update_parameters, **button_style)
+    update_button.config(bg='orange', width=15)
+    update_button.place(x=720, y=10, width=80, height=60) 
+
     # Clean up when press a close button
     root.protocol("WM_DELETE_WINDOW", on_closing)
 
-    root.mainloop() # Call the Main Loop of tk
+    root.mainloop()  # Call the Main Loop of tk
 
 
 if __name__ == '__main__':
     setup_gui()
-    

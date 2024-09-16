@@ -59,7 +59,7 @@ sensors:
 
   obdscanner:
     sampling_frequency_hz: 6
-    sequence_length: 5 # [s]
+    sequence_length: 5 # [s] int
     device: "MXPlus" # ELM327
     data_columns:
       - "SPEED"
