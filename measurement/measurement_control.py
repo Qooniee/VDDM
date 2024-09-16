@@ -73,6 +73,7 @@ class MeasurementControl:
         self.sensors.SAMPLING_FREQUENCY_HZ = new_sampling_frequency
         self.sensors.SAMPLING_TIME = 1 / new_sampling_frequency
         self.sensors.MAX_DATA_BUF_LEN = int(self.sensors.SEQUENCE_LENGTH * self.sensors.SAMPLING_FREQUENCY_HZ)
+        print("----------------------CHANGE SAMPLING FREQUENCY-------------------------------")
         print("--------------------------------BEFORE----------------------------------------")
         print("previous sampling frequency: {0}Hz".format(PREV_SAMPLING_FREQUENCY_HZ))
         print("previous sampling time     : {0}s".format(PREV_SAMPLING_TIME))
@@ -81,6 +82,24 @@ class MeasurementControl:
         print("Update sampling frequency: {0}Hz".format(self.sensors.SAMPLING_FREQUENCY_HZ))
         print("Update sampling time     : {0}s".format(self.sensors.SAMPLING_TIME))
         print("Update max buffer length : {0}s".format(self.sensors.MAX_DATA_BUF_LEN))
+        
+        
+    def on_change_sequence_length(self, new_sequence_length):
+        """
+        Updates the sequence length of the sensors.
+
+        Args:
+            new_sequence_length (int): New sequence length in sec.
+        """
+        PREV_SEQUENCE_LENGTH = self.sensors.SEQUENCE_LENGTH
+        
+        self.sensors.SEQUENCE_LENGTH = int(new_sequence_length)
+        self.sensors.MAX_DATA_BUF_LEN = int(self.sensors.SEQUENCE_LENGTH * self.sensors.SAMPLING_FREQUENCY_HZ)
+        print("------------------------CHANGE SEQUENCE LENGTH--------------------------------")
+        print("--------------------------------BEFORE----------------------------------------")
+        print("previous sequence length  : {0}s".format(PREV_SEQUENCE_LENGTH))
+        print("--------------------------------AFTER----------------------------------------")
+        print("Update sequence length    : {0}s".format(self.sensors.SEQUENCE_LENGTH))
         
     
     async def save_measurement_data(self):
