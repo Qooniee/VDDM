@@ -13,11 +13,11 @@ import sys
 from collections import defaultdict
 import random
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(parent_dir)
 
 from config.config_manager import load_config
-config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
+config_path = os.path.join(parent_dir, "config", "measurement_system_config.yaml")
 
 class OBDSCANNER:
     def __init__(self, config):
@@ -45,7 +45,7 @@ class OBDSCANNER:
         self.IsStop = True
         self.Is_show_real_time_data = config.is_show_real_time_data
 
-    def initialize_BLE(self):
+    def initialize_BLE(self, device_mac = "00:04:3E:84:7D:4C"):
         """
         Initialize Bluetooth Low Energy (BLE) for OBDScanner connection.
         """
@@ -54,22 +54,15 @@ class OBDSCANNER:
             if result != 0:
                 print(f"Command failed: {command}")
             return result
-        # os.system('sudo hcitool scan') # Scan Bluetooth devices and get MAC Addresses
-        # os.system('sudo hciconfig hci0 up') # Activate hci0 which is a bluetooth interface
-        # os.system('sudo rfcomm release 2')  # Release any existing rfcomm2 bindings
-        # os.system('sudo rfcomm bind 2 00:04:3E:84:7D:4C')  # Bind to the OBDLink MX+ device on rfcomm2
-        # os.system('sudo rfcomm listen 2 1 &')
-        if run_command('sudo hcitool scan') != 0:
+        if run_command("sudo hcitool scan") != 0:
             return
-        if run_command('sudo hciconfig hci0 up') != 0:
+        if run_command("sudo hciconfig hci0 up") != 0:
             return
-        if run_command('sudo rfcomm release 0') != 0:
+        if run_command("sudo rfcomm release 0") != 0:
             return
-        if self.device == 'ELM327' and run_command('sudo rfcomm bind 0 8A:2A:D4:FF:38:F3') != 0:
+        if run_command(f"sudo rfcomm bind 0 {device_mac}") != 0:
             return
-        if self.device == 'MXPlus' and run_command('sudo rfcomm bind 0 00:04:3E:84:7D:4C') != 0:
-            return
-        if run_command('sudo rfcomm listen 0 1 &') != 0:
+        if run_command("sudo rfcomm listen 0 1 &") != 0:
             return
 
 
@@ -251,7 +244,7 @@ def test_main():
     
     print("Main start")
     config = load_config(config_path)
-    meas_obdscanner = OBDSCANNER(config.sensors['obdscanner'])
+    meas_obdscanner = OBDSCANNER(config.sensors["obdscanner"])
     # res = meas_elm327.connect_to_elm327()
     
     start_time = perf_counter()
@@ -299,5 +292,5 @@ def test_main():
         print("sampling delay is: {:.3f} s".format(delay_time))
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
     
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_main()
