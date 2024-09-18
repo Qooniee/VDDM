@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add the parent directory to path
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 
 from fusion.sensor_fusion import Sensors

@@ -10,7 +10,7 @@ import numpy as np
 
 
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 
 from config import config_manager
@@ -18,7 +18,7 @@ from utils.tools import wait_process
 from utils.visualize_data import format_sensor_fusion_data
 from signalprocessing.filter import butterlowpass
 
-config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
+config_path = os.path.join(parent_dir, "config", "measurement_system_config.yaml")
 
 
 class SensorFactory:
@@ -160,7 +160,7 @@ class Sensors:
             # Ensure the column is converted to a numpy array
             x = df[labelname].to_numpy()
             filtered_df[labelname] = butterlowpass(
-                x=x,  # Correctly pass the numpy array as 'x'
+                x=x,  # Correctly pass the numpy array as "x"
                 fpass=self.FPASS,
                 fstop=self.FSTOP,
                 gpass=self.GPASS,
@@ -187,7 +187,7 @@ class Sensors:
         Returns:
             pd.DataFrame: A DataFrame containing the converted data with the current time information.
         """
-        converted_data = {'Time': current_time}
+        converted_data = {"Time": current_time}
         for sensor, data in sensor_data_dict.items():
             converted_data.update(data)
         
@@ -236,9 +236,9 @@ class Sensors:
             path (str): The file path where the DataFrame should be saved.
         """
         if not os.path.isfile(path):
-            await asyncio.to_thread(df.to_csv, path, sep=',', encoding='utf-8', index=False, header=True, mode='w')
+            await asyncio.to_thread(df.to_csv, path, sep=",", encoding="utf-8", index=False, header=True, mode="w")
         else:
-            await asyncio.to_thread(df.to_csv, path, sep=',', encoding='utf-8', index=False, header=False, mode='a')
+            await asyncio.to_thread(df.to_csv, path, sep=",", encoding="utf-8", index=False, header=False, mode="a")
     
     async def save_data(self, df, path):
         """
@@ -275,25 +275,25 @@ class Sensors:
         t_delta = datetime.timedelta(hours=9)
         TIMEZONE = datetime.timezone(t_delta, self.TIMEZONE)# You have to set your timezone
         now = datetime.datetime.now(TIMEZONE)
-        timestamp = now.strftime('%Y%m%d%H%M%S')
-        final_file_path = self.SAVE_BUF_CSVDATA_PATH.replace(self.SAVE_BUF_CSVDATA_PATH.split('/')[-1], 
-                                                   timestamp + "/" + timestamp + '_' + 
-                                                   self.SAVE_BUF_CSVDATA_PATH.split('/')[-1])
+        timestamp = now.strftime("%Y%m%d%H%M%S")
+        final_file_path = self.SAVE_BUF_CSVDATA_PATH.replace(self.SAVE_BUF_CSVDATA_PATH.split("/")[-1], 
+                                                   timestamp + "/" + timestamp + "_" + 
+                                                   self.SAVE_BUF_CSVDATA_PATH.split("/")[-1])
         await self.save_data_async(self.data_buffer, self.SAVE_BUF_CSVDATA_PATH)
         raw_df = pd.read_csv(self.SAVE_BUF_CSVDATA_PATH, header=0)
         os.makedirs(self.SAVE_DATA_DIR + "/" + timestamp, exist_ok=True)
-        raw_df.to_csv(final_file_path, sep=',', encoding='utf-8', index=False, header=True)
+        raw_df.to_csv(final_file_path, sep=",", encoding="utf-8", index=False, header=True)
         
 
         if self.is_filter:
             filt_df = self.filtering(df=raw_df, labellist=raw_df.columns[1:])
-            filt_df.to_csv(final_file_path.replace('_raw_data.csv', '_filt_data.csv'), sep=',', encoding='utf-8', index=False, header=True)
+            filt_df.to_csv(final_file_path.replace("_raw_data.csv", "_filt_data.csv"), sep=",", encoding="utf-8", index=False, header=True)
 
         if os.path.exists(self.SAVE_BUF_CSVDATA_PATH):
             os.remove(self.SAVE_BUF_CSVDATA_PATH)
-            print(f"File  '{self.SAVE_BUF_CSVDATA_PATH}' was deleted")
+            print(f'File  "{self.SAVE_BUF_CSVDATA_PATH}" was deleted')
         else:
-            print(f"File '{self.SAVE_BUF_CSVDATA_PATH}' is not existed")
+            print(f'File "{self.SAVE_BUF_CSVDATA_PATH}" is not existed')
 
 
 
@@ -394,5 +394,5 @@ async def sensor_fusion_main():
         print("sampling delay rate is: {:.3f} %".format(sampling_reliability_rate))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(sensor_fusion_main())

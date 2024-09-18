@@ -5,11 +5,11 @@ import board
 import os
 import sys
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.append(parent_dir)
 
 from config.config_manager import load_config
-config_path = os.path.join(parent_dir, 'config', 'measurement_system_config.yaml')
+config_path = os.path.join(parent_dir, "config", "measurement_system_config.yaml")
 
 
 class BNO055:
@@ -35,7 +35,7 @@ class BNO055:
     def calibration(self):
         print("Start calibration!")
         while not self.bno055_sensor.calibrated:
-            print('SYS: {0}, Gyro: {1}, Accel: {2}, Mag: {3}'.format(*(self.bno055_sensor.calibration_status)))
+            print("SYS: {0}, Gyro: {1}, Accel: {2}, Mag: {3}".format(*(self.bno055_sensor.calibration_status)))
             time.sleep(1)
 
 
@@ -189,7 +189,7 @@ def test_main():
     print("Main start")
     
     config = load_config(config_path)
-    meas_bno055 = BNO055(config.sensors['bno055'])
+    meas_bno055 = BNO055(config.sensors["bno055"])
     
     start_time = perf_counter()
     sampling_counter = 0
@@ -241,5 +241,5 @@ def test_main():
 
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_main()
